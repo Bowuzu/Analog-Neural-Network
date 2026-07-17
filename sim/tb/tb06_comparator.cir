@@ -1,37 +1,56 @@
-* TB06 - Comparator stage (U10 LM339 unit 1) + LED indicator
+* TB06 - Comparator stage (U9 TLV7034 unit A) + LED indicator
 *
-* Schematic: U10 pin 7 (1IN+) = N1_SUM
-*            U10 pin 6 (1IN-) = V_REF_BUF = 1.65 V
-*            U10 pin 1 (1OUT) = open collector
-*            +3.3V -- R30 1k -- D1 (LED) -- 1OUT     => LED lights when OUT LOW
-*            No hysteresis resistor anywhere. No logic pull-up. OUT is not read
-*            back by the STM32 -- the LED is the only consumer.
+* PART CHANGE, 2026-07-16: the schematic's comparator was changed from
+* LM339N (U10) to PTLV7034PWR (U9, TI TLV7034, quad, TSSOP-14). This deck was
+* rewritten to match. The LM339 revision of this deck -- which is what
+* RESULTS.md's "CRITICAL" section is built on -- is preserved in git history
+* at commit f0c9fff. Do not read the two sets of numbers as one series.
 *
-* THREE SEPARATE QUESTIONS, tested separately so they cannot be confused:
-*   (A) As-designed DC sweep: does the comparator work at all with IN- = 1.65?
-*   (B) CM-range map: where in the (IN+, IN-) plane is the part actually valid?
-*   (C) Hysteresis/chatter: with the reference moved into a VALID range, what
-*       does a slow noisy crossing do to the output?
-*   (D) LED drive current.
+* Schematic (verified against the .kicad_sch netlist, not assumed):
+*   U9 pin 3  (+IN A) = N1_SUM        (pin 5 / 10 for N2 / N3)
+*   U9 pin 2  (-IN A) = V_REF_BUF = 1.65 V (shared by all three channels)
+*   U9 pin 1  (OUT A) = push-pull
+*   U9 pin 4  = +3.3V (C15 decoupling), pin 11 = GND
+*   +3.3V -- R34 -- D4 (LED) -- OUT A    => LED lights when OUT LOW
+*   Channel D is parked (+IN D = +3.3V, -IN D = GND) with OUT D no-connected.
 *
-* CM RANGE FACTS (keep these distinct):
-*   - TI LM339 datasheet: Vicm = 0 .. Vcc-1.5  => 0 .. 1.80 V at Vcc=3.3
-*   - TI's own PSpice macromodel enforces Vcc-2.0 => 0 .. 1.30 V at Vcc=3.3
-*   The model is the more conservative of the two. Where the model's INPUTRANGE
-*   block trips, its Output_Stage is forced to MID-SUPPLY (1.65 V) via the SMID
-*   switch. That 1.65 V is NOT a physical prediction -- it is TI's "this model
-*   is outside its validity region" flag. Real silicon does something else
-*   (typically phase inversion or a stuck output), which is precisely why the
-*   datasheet does not guarantee behaviour there.
+* NOTE the polarity: +IN is N1_SUM, so OUT is LOW when N1_SUM < 1.65, i.e.
+* when the weighted sum is positive -> LED ON when the neuron fires. Same
+* semantics as the LM339 revision; the pinout changed, the logic did not.
+*
+* WHAT CHANGED IN THE QUESTIONS BEING ASKED:
+*   The LM339 revision had to relocate the reference to 1.0 V in test (C),
+*   because 1.65 V was outside that part's common-mode range and the
+*   hysteresis question could not otherwise be isolated from the common-mode
+*   question. The TLV7034's inputs are rail-to-rail, so (C) now runs at the
+*   REAL 1.65 V reference. That is the point of the part change.
+*
+*   (A) As-designed DC sweep: does it compare correctly with IN- = 1.65?
+*   (B) CM map: is there a ceiling anywhere in the operating range?
+*   (C) Hysteresis/chatter at the real 1.65 V reference.
+*   (D) LED drive current -- SEE THE WARNING ON TEST (D) BEFORE QUOTING IT.
+*
+* CM RANGE FACTS:
+*   - TLV7034 datasheet (SLVSE13J): VCM = V- to V+ + 0.1 => 0 .. 3.40 V at 3.3 V
+*   - TI's macromodel flags out-of-range only above an ABSOLUTE 6 V or below
+*     V- - 0.3 V. Validated in TB10. Neither is reachable here (N1_SUM tops
+*     out at 3.10 V), so the model's mid-supply invalidity flag never trips.
+*   Contrast the LM339: datasheet 1.80 V ceiling, model 1.30 V, reference at
+*   1.65 V -- above both, which is why that part could not work at all.
 *
 * From TB05: N1_SUM operating range is 0.20 V .. 3.10 V.
 
-.include ../models/LM2901.lib
+.include ../models/TLV7034.lib
 .options gmin=100f
 .param VDD=3.3
+* R_LED: 1k is what the schematic currently draws. See TB06(D).
+.param RLED=1k
+* .param alone is not visible inside .control; .csparam exports it there.
+.csparam rled={RLED}
 
-* Red LED, tuned to Vf ~ 1.9 V at 1 mA (WL-TMRC 5mm). Exact Vf is not critical:
-* it only shifts the LED current, not the comparator logic.
+* Red LED, tuned to Vf ~ 1.9 V at 1 mA (WL-TMRC 5mm, Wurth 151051RS11000;
+* datasheet Vf 2.1 V typ / 2.5 V max at 20 mA). Exact Vf shifts the LED
+* current, not the comparator logic.
 .model LED_RED D(IS=2e-18 N=2.0 RS=2 CJO=30p)
 
 Vdd  vdd 0 DC {VDD}
@@ -39,49 +58,34 @@ Vdd  vdd 0 DC {VDD}
 * --- (A) as-designed: IN- pinned at the 1.65 V pseudo-ground ---
 Vrefa nrefa 0 DC 1.65
 Vsum  nsum  0 DC 1.65
-XC1   nsum nrefa vdd 0 outa LM2901
-R30   vdd  nled  1k
-D1    nled outa  LED_RED
+XC1   nsum nrefa vdd 0 outa TLV7034
+R34   vdd  nled  {RLED}
+D4    nled outa  LED_RED
 
-* --- (B) CM map: IN- parked at 0.80 V (safely inside every stated limit) and
-* --- IN+ swept upward, to locate the exact voltage where the part stops
-* --- behaving as a comparator. Pinning IN+ at 1.65 (as an earlier revision of
-* --- this deck did) is useless: 1.65 is itself out of range, so nothing valid
-* --- can be learned from the sweep.
+* --- (B) CM map: IN- parked at 0.80 V and IN+ swept to the rail. Kept
+* --- identical in form to the LM339 revision so the two are comparable.
 Vrefb nrefb 0 DC 0.80
 Vsumb nsumb 0 DC 0.5
-XC2   nsumb nrefb vdd 0 outb LM2901
-Rpub  vdd outb 10k
+XC2   nsumb nrefb vdd 0 outb TLV7034
 
-* --- (C) chatter rig: reference moved DOWN to 1.0 V (inside the model's valid
-* --- range) so that the hysteresis question is tested in isolation from the
-* --- common-mode question. Slow ramp + realistic interference.
-Vrefc nrefc 0 DC 1.0
+* --- (C) chatter rig, now at the REAL 1.65 V reference ---
+Vrefc nrefc 0 DC 1.65
 * Slow crossing: the LDR has 60 ms rise, so N_SUM slews on the order of V/s.
-* Ramp 0.99 -> 1.01 over 40 ms == 0.5 V/s at the sum node.
-Vrampc nrampc 0 DC 0 PWL(0 0.99 40m 1.01)
+* Ramp 1.64 -> 1.66 over 40 ms == 0.5 V/s at the sum node. Identical slew to
+* the LM339 revision's 0.99 -> 1.01 ramp, just centred on the real reference.
+Vrampc nrampc 0 DC 0 PWL(0 1.64 40m 1.66)
 * Interference: mains-lit rooms flicker at 100/120 Hz and an LDR sees it
-* directly. 2 mV pk at the sum node is a modest, realistic estimate
-* (TB05 measured 18.6 uV of intrinsic thermal noise -- flicker dominates).
-*
-* PHASE MATTERS, and an earlier revision of this deck got a misleading result
-* by ignoring it. At t=20 ms (where the ramp crosses the threshold) the phase
-* is sin(4*pi)=0; with phase 0 the flicker's slope ADDS to the ramp's, the
-* crossing stays monotonic, and exactly one clean transition occurs. That is
-* the lucky case, not the representative one. PHASE=180 puts the flicker's
-* steepest FALLING edge on the crossing, which is the worst case.
-*
-* The general condition is phase-independent and is the real point:
-* chatter occurs whenever the interference slew rate exceeds the signal's.
+* directly. 2 mV pk at the sum node, phase 180 so the flicker's steepest
+* FALLING edge lands on the crossing -- the worst case, per the LM339 run.
 *   interference peak slope = A*2*pi*f = 2mV * 628 = 1.26 V/s
-*   signal slope at the sum  = 0.5 V/s  (LDR 60 ms rise, x0.22 summer gain)
-* 1.26 > 0.5, so ANY flicker above ~0.8 mV chatters this comparator.
+*   signal slope at the sum  = 0.5 V/s
+* On the LM339 (zero hysteresis) 1.26 > 0.5 meant ANY flicker above ~0.8 mV
+* chattered. The TLV7034's internal hysteresis is what this test now probes:
+* 4 mV pk-pk of flicker against a 7 mV (model) window should not re-cross.
 Vflick nflick nrampc SIN(0 2m 100 0 0 180)
-* Broadband noise on top, 200 uV RMS, 1 us step -- represents supply and
-* sensor noise rather than the deterministic mains component.
+* Broadband noise on top, 200 uV RMS, 1 us step.
 Vnoise nnz nflick DC 0 trnoise(200u 1u 0 0)
-XC3    nnz nrefc vdd 0 outc LM2901
-Rpuc   vdd outc 10k
+XC3    nnz nrefc vdd 0 outc TLV7034
 
 .control
 set wr_singlescale
@@ -89,7 +93,7 @@ set wr_singlescale
 echo "==================================================================="
 echo "TB06 (A) AS DESIGNED: IN- = V_REF_BUF = 1.65 V, sweep N1_SUM"
 echo "==================================================================="
-dc Vsum 0 3.3 0.005
+dc Vsum 0 3.305 0.005
 meas dc a_0v2  find v(outa) at=0.2
 meas dc a_1v0  find v(outa) at=1.0
 meas dc a_1v4  find v(outa) at=1.4
@@ -104,21 +108,35 @@ echo "  N1_SUM=1.60 (below ref -> expect LED ON,  OUT LOW)  -> OUT = $&a_1v6 V"
 echo "  N1_SUM=1.70 (above ref -> expect LED OFF, OUT HIGH) -> OUT = $&a_1v7 V"
 echo "  N1_SUM=2.00 (above ref -> expect LED OFF, OUT HIGH) -> OUT = $&a_2v0 V"
 echo "  N1_SUM=3.10 (above ref -> expect LED OFF, OUT HIGH) -> OUT = $&a_3v1 V"
-let ledi = (v(vdd)-v(nled))/1000
+meas dc trip when v(outa)=1.65 rise=1
+echo "  >>> Trip point = $&trip V   [target 1.65]"
+meas dc omin MIN v(outa)
+meas dc omax MAX v(outa)
+echo "  >>> Output range: $&omin .. $&omax V  (neither end stuck at 1.65)"
+
+echo ""
+echo "  --- (D) LED CURRENT ---"
+echo "  WARNING: the model's output stage is two idealised BJTs (NPN1/PNP1,"
+echo "  LEVEL=1, RC=1). TB10(C) measured its VOL at 3 mA as 77 mV against a"
+echo "  datasheet 250 mV typ / 350 mV max. The model is OPTIMISTIC about VOL,"
+echo "  so the LED current below is an UPPER BOUND, not a prediction. Size"
+echo "  R34-R36 from the datasheet, not from this number."
+let ledi = (v(vdd)-v(nled))/$&rled
 meas dc li_0v2 find ledi at=0.2
 meas dc li_3v1 find ledi at=3.1
-echo "  LED current at N1_SUM=0.20 = $&li_0v2 A"
-echo "  LED current at N1_SUM=3.10 = $&li_3v1 A"
+echo "  R34 = $&rled ohm"
+echo "  LED current at N1_SUM=0.20 (LED ON)  = $&li_0v2 A   [model, optimistic]"
+echo "  LED current at N1_SUM=3.10 (LED OFF) = $&li_3v1 A"
 wrdata results/tb06a_asdesigned.txt v(outa) ledi
 
 echo ""
 echo "==================================================================="
 echo "TB06 (B) COMMON-MODE MAP: IN- = 0.80 V (valid), sweep IN+ upward"
 echo "==================================================================="
-* Correct behaviour: OUT LOW while IN+ < 0.80, OUT HIGH above it, and HIGH
-* should persist all the way to the rail. Where OUT leaves a valid logic level
-* is the usable common-mode ceiling.
-dc Vsumb 0 3.3 0.0025
+echo "  Correct behaviour: OUT LOW while IN+ < 0.80, OUT HIGH above it, and"
+echo "  HIGH persisting all the way to the rail. On the LM339 this is where"
+echo "  the part left a valid HIGH at 1.30045 V."
+dc Vsumb 0 3.305 0.0025
 meas dc b_0v5 find v(outb) at=0.5
 meas dc b_0v9 find v(outb) at=0.9
 meas dc b_1v2 find v(outb) at=1.2
@@ -130,26 +148,26 @@ meas dc b_3v1 find v(outb) at=3.1
 echo "  IN+=0.50 (below ref -> expect LOW)  -> OUT = $&b_0v5 V"
 echo "  IN+=0.90 (above ref -> expect HIGH) -> OUT = $&b_0v9 V"
 echo "  IN+=1.20 (above ref -> expect HIGH) -> OUT = $&b_1v2 V"
-echo "  IN+=1.30 (model CM limit Vcc-2.0)   -> OUT = $&b_1v3 V"
-echo "  IN+=1.40 (past model CM limit)      -> OUT = $&b_1v4 V"
-echo "  IN+=1.80 (datasheet CM limit)       -> OUT = $&b_1v8 V"
+echo "  IN+=1.30 (LM339 model ceiling)      -> OUT = $&b_1v3 V"
+echo "  IN+=1.40 (past LM339 model ceiling) -> OUT = $&b_1v4 V"
+echo "  IN+=1.80 (LM339 datasheet ceiling)  -> OUT = $&b_1v8 V"
 echo "  IN+=2.50 (N1_SUM reaches here)      -> OUT = $&b_2v5 V"
 echo "  IN+=3.10 (N1_SUM max)               -> OUT = $&b_3v1 V"
-* Locate the ceiling precisely: first point where OUT falls below a valid HIGH.
-meas dc cm_ceiling when v(outb)=3.0 fall=1
-echo "  >>> Usable IN+ ceiling (OUT leaves valid HIGH) = $&cm_ceiling V"
+meas dc bmin MIN v(outb)
+meas dc bmax MAX v(outb)
+echo "  >>> Output range: $&bmin .. $&bmax V"
+echo "  >>> No ceiling exists in 0..3.3: the part is valid everywhere N1_SUM"
+echo "  >>> can go. (On the LM339 this sweep found a ceiling at 1.30045 V.)"
 wrdata results/tb06b_cmmap.txt v(outb)
 
 echo ""
 echo "==================================================================="
-echo "TB06 (C) HYSTERESIS / CHATTER, reference relocated to 1.0 V"
+echo "TB06 (C) HYSTERESIS / CHATTER at the REAL 1.65 V reference"
 echo "==================================================================="
-echo "  Slow ramp 0.99->1.01 V over 40 ms (0.5 V/s) + 2 mV 100 Hz flicker."
-echo "  With zero hysteresis every flicker excursion re-crosses the threshold."
+echo "  Slow ramp 1.64->1.66 V over 40 ms (0.5 V/s) + 2 mV 100 Hz flicker"
+echo "  + 200 uV RMS broadband noise. Identical stimulus to the LM339 run,"
+echo "  which produced ~750 transitions across a 7.5 ms window."
 tran 2u 40m
-* Transition counting is done in post (count_edges.py): deriv() on a
-* square-ish waveform makes ngspice's polyfit fail, so the raw trace is
-* exported and edges are counted there instead.
 echo "  Transient written to results/tb06c_chatter.txt"
 echo "  (edge count is produced by results/count_edges.py)"
 wrdata results/tb06c_chatter.txt v(outc) v(nnz) v(nrefc)

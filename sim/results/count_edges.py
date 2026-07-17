@@ -59,5 +59,8 @@ if edges:
         print("(pass -v to list every transition)")
 else:
     print("NO transitions -- output never crossed the dead-band.")
-    print("If the output sits near mid-supply, the LM339 macromodel is")
+    print("If the output sits near mid-supply, the comparator macromodel is")
     print("signalling that its inputs are outside the valid common-mode range.")
+    print("(Both the LM2901 and TLV7034 models use this same mid-supply flag.)")
+    print("Beware the other cause of a zero count: hysteresis so wide that the")
+    print("test ramp never crosses it. That is a false pass, not a fix.")

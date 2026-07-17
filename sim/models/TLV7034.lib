@@ -1,0 +1,291 @@
+* ============================================================================
+* TLV7034 (quad) -- TI PSpice macromodel
+* ============================================================================
+* PROVENANCE (read this before trusting any result derived from this model):
+*
+*   Source: TI literature SLVMDH3, listed on the TLV7034 product folder as
+*           "TLV7034 PSpice Model". Downloaded from ti.com/lit/zip/slvmdh3.
+*   The zip contains a single netlist named tlv7031.lib. That is expected:
+*   the TLV7034 is four copies of the TLV703x die, so TI ships one model for
+*   the family and the quad is instantiated four times. The subcircuit inside
+*   is .SUBCKT TLV7031.
+*
+* DISCREPANCIES vs the TLV703x datasheet (SLVSE13J), all verified in TB10:
+*
+*   1. The file header says "Part: TLV7011" and "Datasheet: SLVSDM5F" even
+*      though the subcircuit is named TLV7031. TI appears to have derived the
+*      TLV703x model from the TLV701x one. This matters for exactly one
+*      number, hysteresis (see 2). Everything else was checked in TB10.
+*
+*   2. HYSTERESIS: the model hard-codes VHYS = 7 mV (V_V1 N00366 0 7m inside
+*      TOPLEVELSCHEMATIC, feeding the HPA_COMPHYS block). The TLV703x
+*      datasheet specifies 10 mV typ, 3 mV min, 25 mV max. 7 mV is therefore
+*      CONSERVATIVE against typ and still well above the 3 mV minimum.
+*      Chatter conclusions drawn with this model are pessimistic, not
+*      optimistic, which is the safe direction.
+*
+*   3. SUPPLY RANGE: the model's SUPPLYRANGE block enforces 1.65 V <= Vs <=
+*      5.5 V; the datasheet allows 1.6 V to 6.5 V. Vs = 3.3 V sits comfortably
+*      inside both, so this never trips here.
+*
+*   4. INPUT RANGE: the INPUTRANGE block flags out-of-range only when an input
+*      exceeds an ABSOLUTE 6 V, or falls below V- - 0.3 V. Note it is NOT
+*      referenced to V+. This is the whole reason the part fixes the board:
+*      the LM2901 model's INPUTRANGE enforced Vcc-2.0 (= 1.30 V at 3.3 V) and
+*      the 1.65 V reference sat above it. Datasheet VCM is V- to V+ + 0.1.
+*      The model is thus slightly OPTIMISTIC above V+ + 0.1; we never operate
+*      there (max input is N_SUM at ~3.10 V), so it does not affect any
+*      conclusion. TB10(B) measures this directly.
+*
+*   5. The out-of-range flag uses the same mid-supply (MID_SUPPLY / S3 switch)
+*      mechanism as the LM2901 model: if it ever trips, OUT is FORCED to
+*      Vs/2 = 1.65 V. As with the LM339 work, a 1.65 V output from this model
+*      is a "model invalid here" flag, NOT a physical prediction. TB10 exists
+*      to prove the flag stays untripped across our whole operating range.
+*
+*   6. The output stage is two ideal-ish BJTs (NPN1/PNP1, LEVEL=1, RC=1,
+*      RB=850). VOL/VOH fidelity is therefore modelled, not characterised.
+*      TB10(C) compares the model's VOL at 3 mA against the datasheet's
+*      250 mV typ / 350 mV max before any LED current is quoted.
+*
+* MODIFICATIONS: none. The netlist below is byte-identical to TI's, except
+* that CRLF line endings were converted to LF. No content was edited.
+* ============================================================================
+*
+* WRAPPER: TI's port order is (IN+ IN- OUT V+ V-). Every other comparator in
+* this project (LM2901) uses (IN+ IN- Vcc GND OUT). Rather than silently
+* re-order ports at each call site -- an easy way to produce a wrong answer
+* that still simulates -- the wrapper below adapts TI's subcircuit to the
+* house port order. Call TLV7034; do not call TLV7031 directly.
+*
+.SUBCKT TLV7034 IN+ IN- Vcc GND OUT
+X1 IN+ IN- OUT Vcc GND TLV7031
+.ENDS TLV7034
+*
+* ---------------- TI's netlist, verbatim from SLVMDH3 ----------------
+* PSpice Model Editor - Version 17.2.0
+*$
+* TLV7011
+*****************************************************************************
+* (C) Copyright 2019 Texas Instruments Incorporated. All rights reserved.
+*****************************************************************************
+** This model is designed as an aid for customers of Texas Instruments.
+** TI and its licensors and suppliers make no warranties, either expressed
+** or implied, with respect to this model, including the warranties of 
+** merchantability or fitness for a particular purpose.  The model is
+** provided solely on an "as is" basis.  The entire risk as to its quality
+** and performance is with the customer.
+*****************************************************************************
+*
+* This model is subject to change without notice. Texas Instruments
+* Incorporated is not responsible for updating this model
+*
+*****************************************************************************
+*
+** Released by: Texas Instruments Inc.
+* Part: TLV7011
+* Date: 08/04/2020
+* Model Type: All In One
+* Simulator: PSPICE 
+* Simulator Version: 17.2.0.p001
+* EVM Order Number: N/A 
+* EVM Users Guide:  N/A 
+* Datasheet: SLVSDM5F - March 2020
+*
+* Model Version: 1.0
+*
+*****************************************************************************
+*
+* Updates:
+*
+* Version 1.0 : Release to Web
+*         2.0 : Improving Convergence
+*
+*****************************************************************************
+* Notes:
+* The following parameters are modeled: 
+* Iq, tpd, Ibias, Vcm, Vs, Vhyst, Voh/Vol
+*
+*****************************************************************************
+* source TLV7031
+.SUBCKT TLV7031 IN+ IN- OUT V+ V-  
+X_U1 IN+ IN- OUT V+ V- TOPLEVELSCHEMATIC  
+.ENDS
+ 
+.SUBCKT TOPLEVELSCHEMATIC IN+ IN- OUT V+ V-  
+X_U7         IN+_BUFF IN-_BUFF N00308 V+_BUFF V-_BUFF N00366 HPA_COMPHYS
+X_U4 IN-_BUFF IN+_BUFF N00323 V+_BUFF V-_BUFF INPUTRANGE  
+X_U6 N00316 N00323 V+_BUFF V-_BUFF N00312 OUT OUTPUTSTAGE  
+X_U3 IN+ IN+_BUFF IN- IN-_BUFF INPUTBUFFER  
+X_U2 N00316 V+_BUFF V-_BUFF SUPPLYRANGE  
+X_U1 V+ V+_BUFF V- V-_BUFF SUPPLYBUFFER  
+X_U5 N00308 N00312 PROPDELAY  
+V_V1         N00366 0 7m
+I_I1         V+ 0 DC 335n  
+I_I2         IN+ 0 DC 2p  
+I_I3         IN- 0 DC 2p  
+.ENDS
+ 
+.SUBCKT PROPDELAY VIN VOUT  
+T_T1         VIN 0 VOUT 0 Z0=50 TD=3u 
+R_R1         0 VOUT  50 TC=0,0 
+.ENDS
+ 
+.SUBCKT SUPPLYBUFFER V+ V+_BUFFER V- V-_BUFFER  
+X_U1         V+ V- V+_BUFFER V-_BUFFER SUPPLY_BUFFER1 
+.ENDS
+ 
+.SUBCKT SUPPLYRANGE EN V+_BUFFER V-_BUFFER  
+X_U5         N18928 N18958 N18940 V+_BUFFER V-_BUFFER VCC_RANGE
+V_V4         N19230 0 1.65
+X_U15         N18958 N19230 N19104 V+_BUFFER V-_BUFFER VCC_Range
+V_V5         N19172 0 1
+V_V1         N18928 0 5.5
+X_U13         V+_BUFFER V-_BUFFER N18958 V+_BUFFER V-_BUFFER DIFFERENCE
+X_U17         N19100 0 N19172 EN V+_BUFFER V-_BUFFER ENABLE_TLV7021
+X_U16          N18940 N19104 N19100 V+_BUFFER V-_BUFFER ANDGATE
+.ENDS
+ 
+.SUBCKT INPUTBUFFER IN+ IN+_BUFF IN- IN-_BUFF  
+X_U1         IN+ IN- IN+_BUFF IN-_BUFF SUPPLY_BUFFER1 
+.ENDS
+ 
+.SUBCKT OUTPUTSTAGE EN INRANGE V+_BUFFER V-_BUFFER VIN VOUT  
+X_S4    CONTROL 0 N773134 N773128 OUTPUTSTAGE_S4 
+Q_Q2         VOUT N772690 V+_BUFFER PNP1 
+X_S3    CONTROL 0 VOUT MID OUTPUTSTAGE_S3 
+V_V3         1V 0 1
+X_U6         N773122 N773128 N772926 V-_BUFFER INVERTER
+V_V2         N772926 V-_BUFFER 1
+X_U3         VIN N772678 V+_BUFFER V-_BUFFER N772534 V-_BUFFER DIGLEVSHIFT
+Q_Q1         VOUT N773134 V-_BUFFER NPN1 
+X_U4         VIN N773122 V+_BUFFER V-_BUFFER N772926 V-_BUFFER DIGLEVSHIFT
+X_U8         INRANGE EN CONTROL 1V 0 ORGATE
+V_V1         N772534 V+_BUFFER 1
+X_S5    CONTROL 0 N772690 N772684 OUTPUTSTAGE_S5 
+X_U5         N772678 N772684 N772534 V-_BUFFER INVERTER
+X_U7         MID V+_BUFFER V-_BUFFER MID_SUPPLY
+.ENDS
+ 
+.SUBCKT INPUTRANGE INN INP INRANGE V+_BUFFER V-_BUFFER  
+X_U18         N24659 N24743 N24733 V+_BUFFER V-_BUFFER ORGATE
+X_U2         N24835 INN N24743 V+_BUFFER V-_BUFFER VINRANGE_393
+V_V3         N25117 V-_BUFFER -.3
+X_U19         N25095 N25203 N24963 V+_BUFFER V-_BUFFER ORGATE
+V_V4         N25311 V-_BUFFER -.3
+X_U1         N24639 INP N24659 V+_BUFFER V-_BUFFER VINRANGE_393
+V_V1         N24639 0 6
+X_U20         N24733 N24963 0 N25027 INRANGE V+_BUFFER V-_BUFFER ORGATE1701
+X_U3         INP N25117 N25095 V+_BUFFER V-_BUFFER VINRANGE_393
+V_V5         N25027 0 1
+V_V2         N24835 0 6
+X_U17         INN N25311 N25203 V+_BUFFER V-_BUFFER VINRANGE_393
+.ENDS
+
+.subckt OUTPUTSTAGE_S4 1 2 3 4  
+S_S4         3 4 1 2 _S4
+RS_S4         1 2 1G
+.MODEL         _S4 VSWITCH Roff=1e12 Ron=1.0 Voff=1 Von=0
+.ends OUTPUTSTAGE_S4
+
+.subckt OUTPUTSTAGE_S3 1 2 3 4  
+S_S3         3 4 1 2 _S3
+RS_S3         1 2 1G
+.MODEL         _S3 VSWITCH Roff=1e12 Ron=1.0 Voff=0 Von=1
+.ends OUTPUTSTAGE_S3
+
+.subckt OUTPUTSTAGE_S5 1 2 3 4  
+S_S5         3 4 1 2 _S5
+RS_S5         1 2 1G
+.MODEL         _S5 VSWITCH Roff=1e12 Ron=1.0 Voff=1 Von=0
+.ends OUTPUTSTAGE_S5
+
+.SUBCKT ANDGATE 1 2 3 VDD VSS
+E1 4 0 VALUE = { IF( ((V(1)> (V(VDD)+V(VSS))/2 ) & (V(2)> (V(VDD)+V(VSS))/2 )), V(VDD), V(VSS) ) }
+R1 4 3 1
+C1 3 0 1e-12
+.ENDS
+
+.SUBCKT HPA_COMPHYS INP INN OUT_OUT VDD VSS VHYS
+EVMID VMID 0 VALUE = { ( V(VDD) + V(VSS) )/2 }
+EVH VH 0 VALUE = { ( V(VHYS)/2) }
+EINNNEW INNNEW 0 VALUE = { IF( ( V(OUT_OUT) < V(VMID) ),(V(INN) + (V(VH))),( V(INN) - V(VH) ) ) }
+EOUT OUT 0 VALUE = { IF( ( V(INP) > V(INNNEW) ), V(VDD), V(VSS) ) }
+R1 OUT OUT_OUT 1
+C1 OUT_OUT 0 1e-12
+.ENDS
+
+.SUBCKT DIGLEVSHIFT 1 2 VDD_OLD VSS_OLD VDD_NEW VSS_NEW
+E1 3 0 VALUE = { IF( V(1) < (V(VDD_OLD)+V(VSS_OLD))/2, V(VSS_NEW), V(VDD_NEW) ) }
+R1 3 2 1
+C1 2 0 1e-12
+.ENDS
+
+.SUBCKT ENABLE_LOGIC 1 2 OUT VDD VSS 
+EVMID VMID 0 VALUE = { ( V(VDD) + V(VSS) )/2 }
+EOUT OUT 0 VALUE = { IF( ( V(1) > V(VMID) ), V(2), V(VSS) ) }
+R1 OUT 2 1
+C1 2 0 1e-12
+.ENDS
+
+.SUBCKT ENABLE_TLV7021 1 2 3 OUT VDD VSS 
+EVMID VMID 0 VALUE = { ( V(VDD) + V(VSS) )/2 }
+EOUT OUT 0 VALUE = { IF( ( V(1) > V(VMID) ), V(2), V(3) ) }
+R1 OUT 2 1
+C1 2 0 1e-12
+.ENDS
+
+.SUBCKT VIN_INV 1 2 VDD VSS
+E2 2 0 VALUE = { IF( V(1)> (V(VDD)+V(VSS))/2, V(VSS), V(VDD) ) }
+C1 2 0 1e-12
+.ENDS
+
+.SUBCKT INVERTER 1 2 VDD VSS
+E2 2 0 VALUE = { IF( V(1)> (V(VDD)+V(VSS))/2, V(VSS), V(VDD) ) }
+C1 1 0 1e-12
+.ENDS
+
+.SUBCKT MID_SUPPLY OUT VDD VSS
+EVMID VMID 0 VALUE = { ( V(VDD) + V(VSS) )/2 }
+EOUT OUT 0 VALUE = {V(VMID)}
+.ENDS
+
+.SUBCKT ORGATE 1 2 3 VDD VSS
+E1 4 0 VALUE = { IF( ((V(1)< (V(VDD)+V(VSS))/2 ) & (V(2)< (V(VDD)+V(VSS))/2 )), V(VSS), V(VDD) ) }
+R1 4 3 1
+C1 3 0 1e-12
+.ENDS
+
+.SUBCKT ORGATE1701 1 2 3 4 OUT VDD VSS
+EOUT OUT 0 VALUE = { IF( ((V(1)< (V(VDD)+V(VSS))/2 ) & (V(2)< (V(VDD)+V(VSS))/2 )), V(3), V(4) ) }
+.ENDS
+
+.SUBCKT Difference 1 2 OUT VDD VSS 
+EOUT OUT 0 VALUE = { V(1)- V(2)}
+R1 OUT 2 1
+C1 2 0 1e-12
+.ENDS
+
+.SUBCKT SUPPLY_BUFFER1 1 2 VDD_NEW VSS_NEW 
+EVDD_NEW VDD_NEW 0 VALUE = {V(1)}
+EVSS_NEW VSS_NEW 0 VALUE = {V(2)}
+C1 2 0 1e-12
+.ENDS
+
+.SUBCKT VCC_Range 1 2 OUT VDD VSS 
+EOUT OUT 0 VALUE = { IF( ( V(1) >= V(2) ), V(VDD), V(VSS) ) }
+R1 OUT 2 1
+C1 2 0 1e-12
+.ENDS
+
+.SUBCKT VINRANGE_393 1 2 OUT VDD VSS 
+EOUT OUT 0 VALUE = { IF( ( V(1) >= V(2) ), V(VSS), V(VDD) ) }
+R1 OUT 2 1
+C1 2 0 1e-12
+.ENDS
+
+
+.MODEL NPN1 NPN LEVEL=1 IS=1E-16 RB=850 RC=1 TF=5n 
+.MODEL PNP1 PNP LEVEL=1 IS=1E-16 RB=850 RC=1 TF=5n 
+
+

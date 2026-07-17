@@ -1,3 +1,17 @@
+* ============================================================================
+* OBSOLETE -- DO NOT BUILD THE NETWORK THIS DECK VERIFIES.
+*
+* 2026-07-16: the schematic's comparator was changed from LM339N to
+* PTLV7034PWR (TI TLV7034: rail-to-rail input, internal hysteresis,
+* push-pull output). That removes the common-mode problem structurally.
+* The ~3 attenuator verified here, the 10k pull-up and the 4.7M hysteresis
+* feedback are ALL unnecessary on the new part -- and the attenuator would
+* actively hurt, throwing away 3x of signal against a +/-8 mV Vos.
+*
+* Retained only as the record of what was verified for the LM339.
+* The live comparator decks are tb06 (stage) and tb08 (chain); the new
+* part's model is validated in tb10.
+* ============================================================================
 * TB09 - PROPOSED FIXES, verified with the same real TI LM339 macromodel
 *
 * Three defects are addressed together, because they interact:

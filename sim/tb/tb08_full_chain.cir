@@ -1,27 +1,51 @@
 * TB08 - FULL NEURON CHAIN, end to end
 *
+* PART CHANGE, 2026-07-16: comparator LM339N (U10) -> PTLV7034PWR (U9,
+* TI TLV7034). The LM339 revision of this deck is preserved in git at f0c9fff.
+*
 *   3x [LDR divider -> U11 buffer] -> U1 inverter -> complementary pair
 *   -> 4x MCP4261 weight pots (3 inputs + bias) -> R15..R18 100k
-*   -> U2 4-input summer (Rf 22k) -> N1_SUM -> U10 LM339 -> D1 LED
+*   -> U2 4-input summer (Rf 22k) -> N1_SUM -> U9 TLV7034 -> D4 LED
 *
 * Every stage uses the real vendor model and the real schematic values, with
 * the real interconnect loading (each buffer/inverter drives THREE pot
 * terminals in parallel, ~3.33k).
 *
-* Predicted (from TB01-TB05):
-*   V_BUF_IN_n = 3.3 * 100k/(R_LDR_n + 100k)
+* TWO CONFIGURATIONS ARE RUN, because two separate changes are on the table
+* and they must not be conflated:
+*
+*   PASS 1 "as drawn"  : R4-R6 = 100k, R34 = 1k
+*                        -- the schematic as it stands today.
+*   PASS 2 "proposed"  : R4-R6 = 3.3k, R34 = 330
+*                        -- recentres the LDR divider on ~141 lux (room light)
+*                        instead of ~1.5 lux (near dark), and raises LED
+*                        current to the TLV7034's specified 3 mA test point.
+*
+* The comparator change is common to both passes: it is a correctness fix and
+* is not conditional on the resistor values.
+*
+* Predicted (from TB01-TB05, unchanged by the part swap):
+*   V_BUF_IN_n = 3.3 * RFIX/(R_LDR_n + RFIX)
 *   v_n        = V_BUF_n - 1.65
 *   w_n        = 1 - 2*D_n/256          (inverted polarity, see TB04)
 *   N1_SUM     = 1.65 - 0.22*(SUM v_n*w_n + (W_bias - 1.65))
 *   LED ON    <=> N1_SUM < 1.65  <=>  weighted sum > 0     (correct neuron)
+*
+* LDR2/LDR3 are parked at RFIX (=> v2 = v3 = 0 exactly) so the closed form
+* collapses to N1_SUM = 1.65 - 0.22*v1 and every number below can be checked
+* by hand. The LM339 revision parked them at 10 lux instead; that made the
+* algebra check busier without testing anything the sweep does not already.
 
 .include ../models/MCP6001.lib
 .include ../models/MCP4261.lib
-.include ../models/LM2901.lib
+.include ../models/TLV7034.lib
 .options gmin=100f
 .model LED_RED D(IS=2e-18 N=2.0 RS=2 CJO=30p)
 
 .param VDD=3.3
+.param RFIX=100k
+.param RLED=1k
+.csparam rled={RLED}
 
 Vdd  vdd 0 DC {VDD}
 
@@ -31,20 +55,21 @@ R8    n9390 0     10k
 XU11A n9390 vref vdd 0 vref MCP6001
 
 *==================== LDR dividers + buffers ==============================
-* LDR1 is swept (via its log-resistance control node); LDR2/LDR3 are fixed.
+* LDR1 is swept (via its log-resistance control node); LDR2/LDR3 are parked
+* at RFIX so that v2 = v3 = 0.
 Vrexp1 rexp1 0 DC 4.3617
 BLDR1  vdd vin1 I = V(vdd,vin1)/pow(10, V(rexp1))
-R5     vin1 0 100k
+R5     vin1 0 {RFIX}
 XU11B  vin1 vbuf1 vdd 0 vbuf1 MCP6001
 
-Vrexp2 rexp2 0 DC 4.3617
+Vrexp2 rexp2 0 DC 5.0
 BLDR2  vdd vin2 I = V(vdd,vin2)/pow(10, V(rexp2))
-R6     vin2 0 100k
+R6     vin2 0 {RFIX}
 XU11C  vin2 vbuf2 vdd 0 vbuf2 MCP6001
 
-Vrexp3 rexp3 0 DC 4.3617
+Vrexp3 rexp3 0 DC 5.0
 BLDR3  vdd vin3 I = V(vdd,vin3)/pow(10, V(rexp3))
-R4     vin3 0 100k
+R4     vin3 0 {RFIX}
 XU11D  vin3 vbuf3 vdd 0 vbuf3 MCP6001
 
 *==================== Inverting stages (gain -1 about V_REF) ==============
@@ -61,9 +86,6 @@ R14  n363  inv3 10k
 XU1C vref n363 vdd 0 inv3 MCP6001
 
 *==================== Weight pots for neuron 1 ============================
-* Each buffer/inverter output also feeds the corresponding pots of neurons 2
-* and 3. Those pots are present as loading (Rl*) so the drive impedance is
-* realistic, even though only neuron 1's summer is built here.
 Vd1 d1 0 DC 128
 Vd2 d2 0 DC 128
 Vd3 d3 0 DC 128
@@ -89,79 +111,123 @@ R19  n9415 nsum 22k
 XU2A vref n9415 vdd 0 nsum MCP6001
 
 *==================== Comparator + LED ===================================
-XU10 nsum vref vdd 0 out1 LM2901
-R30  vdd nled 1k
-D1   nled out1 LED_RED
+* U9 unit A: +IN = N1_SUM, -IN = V_REF_BUF. OUT LOW => LED ON => neuron fires.
+XU9  nsum vref vdd 0 out1 TLV7034
+R34  vdd nled {RLED}
+D4   nled out1 LED_RED
 
 .control
 set wr_singlescale
 
-echo "================================================================"
-echo "TB08: FULL NEURON CHAIN -- sweep LDR1 across its whole range"
-echo "================================================================"
-echo "  LDR2 = LDR3 = 23k (10 lux). Weights D1=D2=D3=Db=128 initially."
-echo ""
-
-* --- first: does the analog path do what the algebra says? ---
-* Set a real weight vector: D1=0 (w1=+1), D2=192 (w2=-0.5), D3=128 (w3=0),
-* bias Db=128 (contributes 0).
+* Weight vector: D1=0 (w1=+1), D2=192 (w2=-0.5), D3=128 (w3=0), bias Db=128.
+* With v2 = v3 = 0 the vector reduces to N1_SUM = 1.65 - 0.22*v1.
 alter Vd1 = 0
 alter Vd2 = 192
 alter Vd3 = 128
 alter Vdb = 128
 
+echo "================================================================"
+echo "TB08 PASS 1 -- AS DRAWN: R4-R6 = 100k, R34 = 1k"
+echo "================================================================"
+echo "  Divider centres at R_LDR = 100k == ~1.5 lux (near dark)."
+echo ""
+
 dc Vrexp1 3 7 0.01
 
 meas dc vb1_1k   find v(vbuf1) at=3.0
 meas dc vb1_23k  find v(vbuf1) at=4.3617
+meas dc vb1_100k find v(vbuf1) at=5.0
 meas dc vb1_500k find v(vbuf1) at=5.699
-meas dc iv1_23k  find v(inv1)  at=4.3617
 meas dc sum_1k   find v(nsum)  at=3.0
 meas dc sum_23k  find v(nsum)  at=4.3617
 meas dc sum_100k find v(nsum)  at=5.0
 meas dc sum_500k find v(nsum)  at=5.699
-echo "--- Analog path (weights w1=+1, w2=-0.5, w3=0, bias 0) ---"
-echo "  R_LDR1=1k   : V_BUF_1 = $&vb1_1k   N1_SUM = $&sum_1k"
-echo "  R_LDR1=23k  : V_BUF_1 = $&vb1_23k  N1_SUM = $&sum_23k"
-echo "                INV_V_1 = $&iv1_23k  (should be 3.3 - V_BUF_1)"
-echo "  R_LDR1=100k : N1_SUM = $&sum_100k"
-echo "  R_LDR1=500k : V_BUF_1 = $&vb1_500k N1_SUM = $&sum_500k"
-
-* Cross-check against closed form at R_LDR1 = 23k:
-*   V_BUF_1 = 3.3*100/123 = 2.683 -> v1 = +1.033
-*   V_BUF_2 = V_BUF_3     = 2.683 -> v2 = v3 = +1.033
-*   sum = v1*1 + v2*(-0.5) + v3*0 = 1.033 - 0.517 = 0.516
-*   N1_SUM = 1.65 - 0.22*0.516 = 1.536
+meas dc out_1k   find v(out1)  at=3.0
+meas dc out_23k  find v(out1)  at=4.3617
+meas dc out_100k find v(out1)  at=5.0
+meas dc out_500k find v(out1)  at=5.699
+echo "  R_LDR1=1k    (~900 lux): V_BUF_1 = $&vb1_1k  N1_SUM = $&sum_1k  OUT = $&out_1k"
+echo "  R_LDR1=23k   (~10 lux) : V_BUF_1 = $&vb1_23k  N1_SUM = $&sum_23k  OUT = $&out_23k"
+echo "  R_LDR1=100k  (~1.5 lux): V_BUF_1 = $&vb1_100k  N1_SUM = $&sum_100k  OUT = $&out_100k"
+echo "  R_LDR1=500k  (dark)    : V_BUF_1 = $&vb1_500k  N1_SUM = $&sum_500k  OUT = $&out_500k"
+meas dc smin1 MIN v(nsum)
+meas dc smax1 MAX v(nsum)
+meas dc omin1 MIN v(out1)
+meas dc omax1 MAX v(out1)
 echo ""
-echo "  Closed-form check at R_LDR1=23k: N1_SUM should be ~1.536 V"
-
-echo ""
-echo "--- Comparator / LED state across the sweep ---"
-meas dc out_1k   find v(out1) at=3.0
-meas dc out_23k  find v(out1) at=4.3617
-meas dc out_500k find v(out1) at=5.699
-echo "  R_LDR1=1k   : U10 OUT = $&out_1k V"
-echo "  R_LDR1=23k  : U10 OUT = $&out_23k V"
-echo "  R_LDR1=500k : U10 OUT = $&out_500k V"
-echo "  (1.65 V = LM339 macromodel's out-of-common-mode-range flag)"
-
-let vsum  = v(nsum)
-let vrefv = v(vref)
-let outv  = v(out1)
-let rldr1 = 10^v(rexp1)
-wrdata results/tb08_chain_sweep.txt vsum vrefv outv rldr1 v(vbuf1) v(inv1) v(nw1)
+echo "  N1_SUM range over the sweep : $&smin1 .. $&smax1 V"
+echo "  OUT    range over the sweep : $&omin1 .. $&omax1 V"
+echo "  >>> On the LM339 this OUT range was 1.65005 .. 1.65005 (stuck: the"
+echo "  >>> macromodel's out-of-range flag). A range spanning both rails"
+echo "  >>> means the decision stage is live."
+let vsum1  = v(nsum)
+let outv1  = v(out1)
+let rldr1  = 10^v(rexp1)
+wrdata results/tb08_chain_sweep_asdrawn.txt vsum1 outv1 rldr1 v(vbuf1) v(inv1) v(nw1)
 
 echo ""
-echo "--- Does N1_SUM ever get inside the LM339's valid CM window? ---"
-meas dc sum_min MIN v(nsum)
-meas dc sum_max MAX v(nsum)
-echo "  N1_SUM range over the whole LDR1 sweep: $&sum_min .. $&sum_max V"
-echo "  LM339 datasheet CM ceiling at Vcc=3.3 : 1.80 V"
-echo "  TI macromodel CM ceiling               : 1.30 V"
-echo "  V_REF_BUF (the comparator's other input): 1.65 V -- fixed, always"
-echo "  >>> The reference alone is above the model's ceiling, so no input"
-echo "  >>> value can produce a valid comparison. The analog front end is"
-echo "  >>> fine; the decision stage is what fails."
+echo "================================================================"
+echo "TB08 PASS 2 -- PROPOSED: R4-R6 = 3.3k, R34 = 330"
+echo "================================================================"
+echo "  Divider centres at R_LDR = 3.3k == ~141 lux (room light)."
+echo ""
+alter R4 = 3.3k
+alter R5 = 3.3k
+alter R6 = 3.3k
+alter R34 = 330
+* Park LDR2/LDR3 at the new RFIX so v2 = v3 = 0 still holds.
+alter Vrexp2 = 3.5185
+alter Vrexp3 = 3.5185
+
+dc Vrexp1 2.5 6.5 0.01
+
+meas dc p_vb1_760  find v(vbuf1) at=2.8808
+meas dc p_vb1_3k3  find v(vbuf1) at=3.5185
+meas dc p_vb1_24k  find v(vbuf1) at=4.3802
+meas dc p_vb1_500k find v(vbuf1) at=5.699
+meas dc p_sum_760  find v(nsum)  at=2.8808
+meas dc p_sum_3k3  find v(nsum)  at=3.5185
+meas dc p_sum_24k  find v(nsum)  at=4.3802
+meas dc p_sum_500k find v(nsum)  at=5.699
+meas dc p_out_760  find v(out1)  at=2.8808
+meas dc p_out_3k3  find v(out1)  at=3.5185
+meas dc p_out_24k  find v(out1)  at=4.3802
+meas dc p_out_500k find v(out1)  at=5.699
+echo "  R_LDR1=760R  (~1000 lux): V_BUF_1 = $&p_vb1_760  N1_SUM = $&p_sum_760  OUT = $&p_out_760"
+echo "  R_LDR1=3.3k  (~141 lux) : V_BUF_1 = $&p_vb1_3k3  N1_SUM = $&p_sum_3k3  OUT = $&p_out_3k3"
+echo "  R_LDR1=24k   (~10 lux)  : V_BUF_1 = $&p_vb1_24k  N1_SUM = $&p_sum_24k  OUT = $&p_out_24k"
+echo "  R_LDR1=500k  (dark)     : V_BUF_1 = $&p_vb1_500k  N1_SUM = $&p_sum_500k  OUT = $&p_out_500k"
+echo ""
+echo "  Closed-form check at R_LDR1 = 3.3k (the centre):"
+echo "    V_BUF_1 = 3.3*3.3/(3.3+3.3) = 1.650 -> v1 = 0 -> N1_SUM = 1.650"
+echo "    i.e. the divider centre should land exactly on the trip point."
+meas dc smin2 MIN v(nsum)
+meas dc smax2 MAX v(nsum)
+meas dc omin2 MIN v(out1)
+meas dc omax2 MAX v(out1)
+echo ""
+echo "  N1_SUM range over the sweep : $&smin2 .. $&smax2 V"
+echo "  OUT    range over the sweep : $&omin2 .. $&omax2 V"
+
+* Where does the LED switch, in R_LDR terms? Should be at R_LDR1 = RFIX.
+meas dc sw_rexp when v(out1)=1.65 rise=1
+let sw_r = 10^sw_rexp
+echo "  >>> LED switches off at R_LDR1 = $&sw_r ohm   [expect 3300 = RFIX]"
+
+let vsum2  = v(nsum)
+let outv2  = v(out1)
+let rldr2  = 10^v(rexp1)
+wrdata results/tb08_chain_sweep_proposed.txt vsum2 outv2 rldr2 v(vbuf1) v(inv1) v(nw1)
+
+echo ""
+echo "  --- LED current, PASS 2 (R34 = 330) ---"
+echo "  WARNING: model VOL is optimistic (TB10(C): 77 mV vs datasheet 250 mV"
+echo "  typ at 3 mA). Treat as an UPPER BOUND; size R34 from the datasheet."
+let ledi2 = (v(vdd)-v(nled))/330
+meas dc li_on  find ledi2 at=2.8808
+meas dc li_off find ledi2 at=5.699
+echo "  LED current, LED ON  = $&li_on A   [model, optimistic]"
+echo "  LED current, LED OFF = $&li_off A"
 
 quit
 .endc

@@ -1,0 +1,174 @@
+* TB10 - TLV7034 MODEL VALIDATION
+*
+* Same purpose and same discipline as TB00: prove TI's macromodel reproduces
+* its datasheet BEFORE any conclusion is drawn from it. This deck exists
+* because the whole comparator fix rests on one claim -- that the TLV7034's
+* input common-mode range covers 1.65 V at Vcc = 3.3 V -- and a model that
+* silently ignored its own limits would produce a false pass, exactly as a
+* model that over-enforced them produced the LM339's false 1.65 V "prediction".
+*
+* Datasheet targets (SLVSE13J, quad table 5.11) at Vs = 3.3 V:
+*   VCM       V- .. V+ + 0.1        -> 0 .. 3.40 V   (THE claim under test)
+*   VHYS      10 mV typ (3 min / 25 max)
+*   VOL       250 mV typ / 350 mV max at IO = 3 mA   (specified at Vs = 5 V)
+*   ISC       33 mA sinking / 29 mA sourcing
+*   ICC       315 nA typ per channel / 750 nA max
+*   tPD       3 us typ
+*   VIO       +/-0.1 mV typ, +/-8 mV max
+*
+* Known model/datasheet divergences (documented in models/TLV7034.lib):
+*   - model VHYS is hard-coded 7 mV, datasheet typ is 10 mV -> conservative
+*   - model INPUTRANGE uses an absolute 6 V ceiling, not V+ + 0.1 -> optimistic
+*     ABOVE the rail only; we never operate there (max input ~3.10 V).
+
+.include ../models/TLV7034.lib
+.options gmin=100f
+.param VDD=3.3
+
+* Red LED, same model as TB06/TB08 (WL-TMRC 5mm, Wurth 151051RS11000).
+.model LED_RED D(IS=2e-18 N=2.0 RS=2 CJO=30p)
+
+Vdd vdd 0 DC {VDD}
+
+*--------------------------------------------------------------------
+* A) INPUT COMMON-MODE RANGE -- the claim the whole fix rests on.
+* IN- parked at 1.65 V (exactly where V_REF_BUF sits on the real board:
+* the value that was ABOVE the LM339 model's ceiling). IN+ swept rail to
+* rail. A rail-to-rail-input part must compare correctly at every point.
+*--------------------------------------------------------------------
+Vrefa nrefa 0 DC 1.65
+Vsuma nsuma 0 DC 0
+XCA   nsuma nrefa vdd 0 outa TLV7034
+
+*--------------------------------------------------------------------
+* B) CM ceiling probe: IN- parked LOW at 0.80 V and IN+ swept up past the
+* rail. Mirrors TB06(B) on the LM339 so the two are directly comparable.
+* Expect OUT to stay a valid HIGH all the way to 3.3 V (and beyond, since
+* the model's ceiling is an absolute 6 V).
+*--------------------------------------------------------------------
+Vrefb nrefb 0 DC 0.80
+Vsumb nsumb 0 DC 0.5
+XCB   nsumb nrefb vdd 0 outb TLV7034
+
+*--------------------------------------------------------------------
+* C) VOL / VOH at the datasheet's 3 mA test current.
+* C1: output forced LOW. To make the comparator SINK 3 mA, current must be
+*     pushed INTO the output node from outside: I 0 -> outc.
+* C2: output forced HIGH. To make it SOURCE 3 mA, current must be pulled OUT
+*     of the output node: I outd -> 0.
+* (Getting these backwards is not a subtle failure -- it drives the output
+*  past the rail, which is how the first run of this deck was caught.)
+*--------------------------------------------------------------------
+Vrefc nrefc 0 DC 1.65
+Vsumc nsumc 0 DC 1.0
+XCC   nsumc nrefc vdd 0 outc TLV7034
+Isink 0 outc DC 3m
+
+Vrefd nrefd 0 DC 1.0
+Vsumd nsumd 0 DC 1.65
+XCD   nsumd nrefd vdd 0 outd TLV7034
+Isrc  outd 0 DC 3m
+
+*--------------------------------------------------------------------
+* D) HYSTERESIS: sweep IN+ up then down through the trip point and read
+* the width of the loop directly.
+*--------------------------------------------------------------------
+Vrefe nrefe 0 DC 1.65
+Vsume nsume 0 DC 0 PWL(0 1.60 10m 1.70 20m 1.60)
+XCE   nsume nrefe vdd 0 oute TLV7034
+
+*--------------------------------------------------------------------
+* E) PROPAGATION DELAY: 100 mV overdrive step, as the datasheet specifies.
+*--------------------------------------------------------------------
+Vreff nreff 0 DC 1.65
+Vsumf nsumf 0 DC 0 PULSE(1.55 1.75 10u 10n 10n 30u 60u)
+XCF   nsumf nreff vdd 0 outf TLV7034
+Cf    outf 0 15p
+
+.control
+set wr_singlescale
+
+echo "==================================================================="
+echo "TB10 (A) INPUT CM RANGE with IN- = 1.65 V (the LM339 killer)"
+echo "==================================================================="
+dc Vsuma 0 3.305 0.005
+meas dc a_0v0 find v(outa) at=0.0
+meas dc a_0v2 find v(outa) at=0.2
+meas dc a_1v0 find v(outa) at=1.0
+meas dc a_1v6 find v(outa) at=1.6
+meas dc a_1v7 find v(outa) at=1.7
+meas dc a_2v5 find v(outa) at=2.5
+meas dc a_3v1 find v(outa) at=3.1
+meas dc a_3v3 find v(outa) at=3.3
+echo "  IN+=0.00 (below ref -> expect LOW)  -> OUT = $&a_0v0 V"
+echo "  IN+=0.20 (below ref -> expect LOW)  -> OUT = $&a_0v2 V   [N_SUM min]"
+echo "  IN+=1.00 (below ref -> expect LOW)  -> OUT = $&a_1v0 V"
+echo "  IN+=1.60 (below ref -> expect LOW)  -> OUT = $&a_1v6 V"
+echo "  IN+=1.70 (above ref -> expect HIGH) -> OUT = $&a_1v7 V"
+echo "  IN+=2.50 (above ref -> expect HIGH) -> OUT = $&a_2v5 V   [was invalid on LM339]"
+echo "  IN+=3.10 (above ref -> expect HIGH) -> OUT = $&a_3v1 V   [N_SUM max]"
+echo "  IN+=3.30 (above ref -> expect HIGH) -> OUT = $&a_3v3 V"
+meas dc trip_a when v(outa)=1.65 rise=1
+echo "  >>> Trip point = $&trip_a V   [target 1.65]"
+meas dc omin MIN v(outa)
+meas dc omax MAX v(outa)
+echo "  >>> Output range over the whole sweep: $&omin .. $&omax V"
+echo "  >>> (a stuck 1.65 V here would mean the mid-supply invalidity flag"
+echo "  >>>  tripped, exactly as it did for the LM339)"
+wrdata results/tb10a_cmrange.txt v(outa)
+
+echo ""
+echo "==================================================================="
+echo "TB10 (B) CM CEILING PROBE: IN- = 0.80 V, sweep IN+ past the rail"
+echo "==================================================================="
+dc Vsumb 0 3.305 0.0025
+meas dc b_0v5 find v(outb) at=0.5
+meas dc b_1v3 find v(outb) at=1.3
+meas dc b_1v8 find v(outb) at=1.8
+meas dc b_2v5 find v(outb) at=2.5
+meas dc b_3v3 find v(outb) at=3.3
+echo "  IN+=0.50 (below ref -> expect LOW)  -> OUT = $&b_0v5 V"
+echo "  IN+=1.30 (LM339 model died here)    -> OUT = $&b_1v3 V"
+echo "  IN+=1.80 (LM339 datasheet limit)    -> OUT = $&b_1v8 V"
+echo "  IN+=2.50                            -> OUT = $&b_2v5 V"
+echo "  IN+=3.30 (at the rail)              -> OUT = $&b_3v3 V"
+wrdata results/tb10b_ceiling.txt v(outb)
+
+echo ""
+echo "==================================================================="
+echo "TB10 (C) VOL / VOH at the datasheet's 3 mA test current"
+echo "==================================================================="
+op
+echo "  VOL at 3 mA sink   = $&v(outc) V        [datasheet 250 mV typ / 350 max @ Vs=5V]"
+let voh_drop = v(vdd) - v(outd)
+echo "  VOH at 3 mA source = $&v(outd) V  (drop $&voh_drop V)"
+echo "  NOTE: datasheet specifies these at Vs = 5 V; this runs at 3.3 V."
+
+echo ""
+echo "==================================================================="
+echo "TB10 (D) HYSTERESIS width"
+echo "==================================================================="
+tran 10u 20m
+meas tran t_rise when v(oute)=1.65 rise=1
+meas tran t_fall when v(oute)=1.65 fall=1
+* ramp: 1.60 -> 1.70 over 10 ms, then back. 0.1 V per 10 ms = 10 V/s.
+let v_rise = 1.60 + 10*t_rise
+let v_fall = 1.70 - 10*(t_fall - 10m)
+let vhys = v_rise - v_fall
+echo "  rising  trip = $&v_rise V"
+echo "  falling trip = $&v_fall V"
+echo "  >>> Hysteresis = $&vhys V"
+echo "  >>> [model hard-codes 7 mV; datasheet 10 mV typ, 3 min, 25 max]"
+
+echo ""
+echo "==================================================================="
+echo "TB10 (E) PROPAGATION DELAY, 100 mV overdrive, CL = 15 pF"
+echo "==================================================================="
+tran 100n 60u
+meas tran tp_lh TRIG v(nsumf) VAL=1.65 RISE=1 TARG v(outf) VAL=1.65 RISE=1
+echo "  tPLH = $&tp_lh s   [datasheet 3 us typ]"
+
+quit
+.endc
+
+.end

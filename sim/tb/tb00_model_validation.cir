@@ -1,0 +1,126 @@
+* TB00 - MODEL VALIDATION
+* Purpose: prove the vendor macromodels reproduce their datasheet specs BEFORE
+* any conclusion is drawn from them. If a model does not match its datasheet,
+* nothing downstream of it is trustworthy.
+*
+* MCP6001/2/4 (Microchip macromodel, used for the MCP6004 quad) targets @3.3V:
+*   GBWP        1 MHz typ
+*   Aol         112 dB typ
+*   Slew rate   0.6 V/us typ
+*   Vicm        Vss-0.3 .. Vdd+0.3  (RAIL-TO-RAIL INPUT)
+*   Vout swing  Vss+25mV .. Vdd-25mV typ
+*
+* LM339/LM2901 (TI macromodel) targets @3.3V:
+*   Vicm        0 .. Vcc-1.5  (datasheet)  -> 1.8 V at Vcc=3.3
+*   NOTE: TI's model enforces Vcc-2.0 -> 1.3 V at Vcc=3.3 (more conservative).
+*   This discrepancy is deliberate to check, not a bug in our deck.
+
+.include ../models/MCP6001.lib
+.include ../models/LM2901.lib
+
+.options gmin=100f
+.param VDD=3.3
+
+*--------------------------------------------------------------------
+* A) MCP6001 open-loop gain and GBW
+* DC loop closed through L1 (1GH), AC loop opened by C1 (1GF) -> the
+* classic open-loop AC measurement rig.
+*--------------------------------------------------------------------
+Vdda   vdda 0 DC {VDD}
+Vina   nipa 0 DC 1.65 AC 1
+XOA1   nipa nina vdda 0 vouta MCP6001
+L1     vouta nina 1G
+C1     nina 0 1G
+
+*--------------------------------------------------------------------
+* B) MCP6001 unity-gain buffer: input common-mode range + output swing
+*--------------------------------------------------------------------
+Vddb   vddb 0 DC {VDD}
+Vinb   nipb 0 DC 1.65
+XOA2   nipb voutb vddb 0 voutb MCP6001
+Rlb    voutb 0 10k
+
+*--------------------------------------------------------------------
+* C) MCP6001 slew rate rig (unity buffer, big step)
+*--------------------------------------------------------------------
+Vddc   vddc 0 DC {VDD}
+Vinc   nipc 0 DC 0 PULSE(0.3 3.0 1u 10n 10n 20u 40u)
+XOA3   nipc voutc vddc 0 voutc MCP6001
+Rlc    voutc 0 10k
+
+*--------------------------------------------------------------------
+* D) LM2901/LM339 input common-mode range probe
+* IN- held at 1.0 V (comfortably inside range), IN+ swept 0..3.3.
+* Open-collector output pulled up by Rpu to observe state.
+*--------------------------------------------------------------------
+Vddd   vddd 0 DC {VDD}
+Vinm   ninm 0 DC 1.0
+Vinp   ninp 0 DC 0
+XC1    ninp ninm vddd 0 voutd LM2901
+Rpu    vddd voutd 10k
+
+.control
+set wr_singlescale
+echo "=============== A) MCP6001 open-loop gain / GBW ==============="
+ac dec 50 0.1 100Meg
+meas ac aol_db      find vdb(vouta) at=1
+meas ac gbw         when vdb(vouta)=0 fall=1
+meas ac gain_1k     find vdb(vouta) at=1k
+echo "  Aol(1Hz) = $&aol_db dB      [datasheet 112 dB typ]"
+echo "  GBW      = $&gbw Hz         [datasheet 1 MHz typ]"
+
+echo ""
+echo "=============== B) MCP6001 buffer: CM range + swing ==============="
+* Sweep the buffer input rail to rail; a rail-to-rail-input part should track
+* all the way. Report the follower error at the extremes.
+dc Vinb 0 3.31 0.01
+meas dc vo_at_0v0   find v(voutb) at=0.0
+meas dc vo_at_0v1   find v(voutb) at=0.1
+meas dc vo_at_1v65  find v(voutb) at=1.65
+meas dc vo_at_3v2   find v(voutb) at=3.2
+meas dc vo_at_3v3   find v(voutb) at=3.3
+echo "  Vin=0.00 -> Vout = $&vo_at_0v0   (VOL, datasheet ~Vss+25mV)"
+echo "  Vin=0.10 -> Vout = $&vo_at_0v1"
+echo "  Vin=1.65 -> Vout = $&vo_at_1v65  (midscale, error = Vos)"
+echo "  Vin=3.20 -> Vout = $&vo_at_3v2"
+echo "  Vin=3.30 -> Vout = $&vo_at_3v3   (VOH, datasheet ~Vdd-25mV)"
+
+echo ""
+echo "=============== C) MCP6001 slew rate ==============="
+tran 20n 40u
+meas tran t_lo when v(voutc)=1.0 rise=1
+meas tran t_hi when v(voutc)=2.5 rise=1
+let sr = 1.5 / (t_hi - t_lo)
+echo "  Slew rate (1.0->2.5V) = $&sr V/s   [datasheet 0.6 V/us = 6e5 V/s]"
+
+echo ""
+echo "=============== D) LM339 input common-mode range ==============="
+* IN- = 1.0 V. Sweeping IN+ across the rail. Correct comparator behaviour:
+* OUT low while IN+ < 1.0, OUT high (pulled up) while IN+ > 1.0.
+* Where the model gives up (CM range exceeded) the output goes Hi-Z, which
+* the 10k pull-up renders as HIGH regardless of the true comparison.
+dc Vinp 0 3.3 0.01
+meas dc vo_ip_0v5  find v(voutd) at=0.5
+meas dc vo_ip_0v9  find v(voutd) at=0.9
+meas dc vo_ip_1v1  find v(voutd) at=1.1
+meas dc vo_ip_1v25 find v(voutd) at=1.25
+meas dc vo_ip_1v40 find v(voutd) at=1.40
+meas dc vo_ip_1v65 find v(voutd) at=1.65
+meas dc vo_ip_2v50 find v(voutd) at=2.50
+meas dc vo_ip_3v00 find v(voutd) at=3.00
+echo "  IN+=0.50 (below IN-, expect LOW)  -> $&vo_ip_0v5"
+echo "  IN+=0.90 (below IN-, expect LOW)  -> $&vo_ip_0v9"
+echo "  IN+=1.10 (above IN-, expect HIGH) -> $&vo_ip_1v1"
+echo "  IN+=1.25 (above IN-, expect HIGH) -> $&vo_ip_1v25"
+echo "  IN+=1.40 (model CM limit 1.3 V)   -> $&vo_ip_1v40"
+echo "  IN+=1.65 (V_REF_BUF sits here!)   -> $&vo_ip_1v65"
+echo "  IN+=2.50 (N_SUM reaches here)     -> $&vo_ip_2v50"
+echo "  IN+=3.00 (N_SUM reaches here)     -> $&vo_ip_3v00"
+
+* NOTE ON PATHS: ngspice resolves .include relative to the deck (tb/), but
+* wrdata relative to the CWD. All decks are run from sim/, hence "results/".
+wrdata results/tb00_lm339_cm.txt v(voutd)
+quit
+.endc
+
+.end

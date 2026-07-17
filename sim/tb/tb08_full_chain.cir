@@ -1,0 +1,169 @@
+* TB08 - FULL NEURON CHAIN, end to end
+*
+*   3x [LDR divider -> U11 buffer] -> U1 inverter -> complementary pair
+*   -> 4x MCP4261 weight pots (3 inputs + bias) -> R15..R18 100k
+*   -> U2 4-input summer (Rf 22k) -> N1_SUM -> U10 LM339 -> D1 LED
+*
+* Every stage uses the real vendor model and the real schematic values, with
+* the real interconnect loading (each buffer/inverter drives THREE pot
+* terminals in parallel, ~3.33k).
+*
+* Predicted (from TB01-TB05):
+*   V_BUF_IN_n = 3.3 * 100k/(R_LDR_n + 100k)
+*   v_n        = V_BUF_n - 1.65
+*   w_n        = 1 - 2*D_n/256          (inverted polarity, see TB04)
+*   N1_SUM     = 1.65 - 0.22*(SUM v_n*w_n + (W_bias - 1.65))
+*   LED ON    <=> N1_SUM < 1.65  <=>  weighted sum > 0     (correct neuron)
+
+.include ../models/MCP6001.lib
+.include ../models/MCP4261.lib
+.include ../models/LM2901.lib
+.options gmin=100f
+.model LED_RED D(IS=2e-18 N=2.0 RS=2 CJO=30p)
+
+.param VDD=3.3
+
+Vdd  vdd 0 DC {VDD}
+
+*==================== V_REF pseudo-ground (real R7/R8 + U11A) ==============
+R7    vdd   n9390 10k
+R8    n9390 0     10k
+XU11A n9390 vref vdd 0 vref MCP6001
+
+*==================== LDR dividers + buffers ==============================
+* LDR1 is swept (via its log-resistance control node); LDR2/LDR3 are fixed.
+Vrexp1 rexp1 0 DC 4.3617
+BLDR1  vdd vin1 I = V(vdd,vin1)/pow(10, V(rexp1))
+R5     vin1 0 100k
+XU11B  vin1 vbuf1 vdd 0 vbuf1 MCP6001
+
+Vrexp2 rexp2 0 DC 4.3617
+BLDR2  vdd vin2 I = V(vdd,vin2)/pow(10, V(rexp2))
+R6     vin2 0 100k
+XU11C  vin2 vbuf2 vdd 0 vbuf2 MCP6001
+
+Vrexp3 rexp3 0 DC 4.3617
+BLDR3  vdd vin3 I = V(vdd,vin3)/pow(10, V(rexp3))
+R4     vin3 0 100k
+XU11D  vin3 vbuf3 vdd 0 vbuf3 MCP6001
+
+*==================== Inverting stages (gain -1 about V_REF) ==============
+R9   vbuf1 n5213 10k
+R10  n5213 inv1  10k
+XU1A vref n5213 vdd 0 inv1 MCP6001
+
+R11  vbuf2 n9963 10k
+R12  n9963 inv2  10k
+XU1B vref n9963 vdd 0 inv2 MCP6001
+
+R13  vbuf3 n363 10k
+R14  n363  inv3 10k
+XU1C vref n363 vdd 0 inv3 MCP6001
+
+*==================== Weight pots for neuron 1 ============================
+* Each buffer/inverter output also feeds the corresponding pots of neurons 2
+* and 3. Those pots are present as loading (Rl*) so the drive impedance is
+* realistic, even though only neuron 1's summer is built here.
+Vd1 d1 0 DC 128
+Vd2 d2 0 DC 128
+Vd3 d3 0 DC 128
+Vdb db 0 DC 128
+
+XP1  inv1 nw1 vbuf1 d1 MCP4261_POT_SW
+XP2  inv2 nw2 vbuf2 d2 MCP4261_POT_SW
+XP3  inv3 nw3 vbuf3 d3 MCP4261_POT_SW
+* bias pot: A = GND, B = +3.3V
+XPB  0    nw4 vdd   db MCP4261_POT_SW
+
+* loading from neuron 2 and neuron 3 pots (two more 10k pots on each pair)
+Rl1a vbuf1 inv1 5k
+Rl2a vbuf2 inv2 5k
+Rl3a vbuf3 inv3 5k
+
+*==================== Summer (U2 unit A) ==================================
+R15  nw1 n9415 100k
+R16  nw2 n9415 100k
+R17  nw3 n9415 100k
+R18  nw4 n9415 100k
+R19  n9415 nsum 22k
+XU2A vref n9415 vdd 0 nsum MCP6001
+
+*==================== Comparator + LED ===================================
+XU10 nsum vref vdd 0 out1 LM2901
+R30  vdd nled 1k
+D1   nled out1 LED_RED
+
+.control
+set wr_singlescale
+
+echo "================================================================"
+echo "TB08: FULL NEURON CHAIN -- sweep LDR1 across its whole range"
+echo "================================================================"
+echo "  LDR2 = LDR3 = 23k (10 lux). Weights D1=D2=D3=Db=128 initially."
+echo ""
+
+* --- first: does the analog path do what the algebra says? ---
+* Set a real weight vector: D1=0 (w1=+1), D2=192 (w2=-0.5), D3=128 (w3=0),
+* bias Db=128 (contributes 0).
+alter Vd1 = 0
+alter Vd2 = 192
+alter Vd3 = 128
+alter Vdb = 128
+
+dc Vrexp1 3 7 0.01
+
+meas dc vb1_1k   find v(vbuf1) at=3.0
+meas dc vb1_23k  find v(vbuf1) at=4.3617
+meas dc vb1_500k find v(vbuf1) at=5.699
+meas dc iv1_23k  find v(inv1)  at=4.3617
+meas dc sum_1k   find v(nsum)  at=3.0
+meas dc sum_23k  find v(nsum)  at=4.3617
+meas dc sum_100k find v(nsum)  at=5.0
+meas dc sum_500k find v(nsum)  at=5.699
+echo "--- Analog path (weights w1=+1, w2=-0.5, w3=0, bias 0) ---"
+echo "  R_LDR1=1k   : V_BUF_1 = $&vb1_1k   N1_SUM = $&sum_1k"
+echo "  R_LDR1=23k  : V_BUF_1 = $&vb1_23k  N1_SUM = $&sum_23k"
+echo "                INV_V_1 = $&iv1_23k  (should be 3.3 - V_BUF_1)"
+echo "  R_LDR1=100k : N1_SUM = $&sum_100k"
+echo "  R_LDR1=500k : V_BUF_1 = $&vb1_500k N1_SUM = $&sum_500k"
+
+* Cross-check against closed form at R_LDR1 = 23k:
+*   V_BUF_1 = 3.3*100/123 = 2.683 -> v1 = +1.033
+*   V_BUF_2 = V_BUF_3     = 2.683 -> v2 = v3 = +1.033
+*   sum = v1*1 + v2*(-0.5) + v3*0 = 1.033 - 0.517 = 0.516
+*   N1_SUM = 1.65 - 0.22*0.516 = 1.536
+echo ""
+echo "  Closed-form check at R_LDR1=23k: N1_SUM should be ~1.536 V"
+
+echo ""
+echo "--- Comparator / LED state across the sweep ---"
+meas dc out_1k   find v(out1) at=3.0
+meas dc out_23k  find v(out1) at=4.3617
+meas dc out_500k find v(out1) at=5.699
+echo "  R_LDR1=1k   : U10 OUT = $&out_1k V"
+echo "  R_LDR1=23k  : U10 OUT = $&out_23k V"
+echo "  R_LDR1=500k : U10 OUT = $&out_500k V"
+echo "  (1.65 V = LM339 macromodel's out-of-common-mode-range flag)"
+
+let vsum  = v(nsum)
+let vrefv = v(vref)
+let outv  = v(out1)
+let rldr1 = 10^v(rexp1)
+wrdata results/tb08_chain_sweep.txt vsum vrefv outv rldr1 v(vbuf1) v(inv1) v(nw1)
+
+echo ""
+echo "--- Does N1_SUM ever get inside the LM339's valid CM window? ---"
+meas dc sum_min MIN v(nsum)
+meas dc sum_max MAX v(nsum)
+echo "  N1_SUM range over the whole LDR1 sweep: $&sum_min .. $&sum_max V"
+echo "  LM339 datasheet CM ceiling at Vcc=3.3 : 1.80 V"
+echo "  TI macromodel CM ceiling               : 1.30 V"
+echo "  V_REF_BUF (the comparator's other input): 1.65 V -- fixed, always"
+echo "  >>> The reference alone is above the model's ceiling, so no input"
+echo "  >>> value can produce a valid comparison. The analog front end is"
+echo "  >>> fine; the decision stage is what fails."
+
+quit
+.endc
+
+.end

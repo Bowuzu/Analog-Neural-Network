@@ -1,0 +1,8 @@
+* ngspice init for ANN_Kicad simulation
+* Both vendor models (Microchip MCP6001, TI LM2901/LM339) are PSpice-syntax:
+* they use POLY() and PSpice-style TABLE {expr} ((x,y)(x,y)) constructs that
+* ngspice only accepts in PSpice compatibility mode.
+set ngbehavior=ps
+* NOTE: gmin cannot be set here (ngspice rejects it before a circuit is loaded).
+* Microchip's model header recommends GMIN=100f for high-impedance circuits;
+* that is applied per-deck via ".options gmin=100f" instead.

@@ -1,0 +1,117 @@
+* TB02 - LDR divider + unity buffer
+*
+* Schematic: +3.3V -- R1 (LDR, PDV-P8103) -- V_BUF_IN_1 -- R5 100k -- GND
+*            V_BUF_IN_1 -> U11 pin 5 (VINB+) and IC1 pin 6 (STM32 PA0 / ADC)
+*            U11 unit B is a unity follower: VOUTB tied to VINB-
+*
+* PDV-P8103 datasheet (Luna, REV 10-24-16):
+*   Dark resistance      0.5 MOhm min (after 10 s @ 10 lux)
+*   Illuminated @ 10 lux 16 kOhm min .. 33 kOhm max   (no typ given)
+*   Sensitivity (gamma)  0.75 typ = [log R100 - log R10]/[log E100 - log E10]
+*                        => R(E) = R10 * (E/10)^-0.75
+*   Rise 60 ms / Fall 25 ms  -> the sensor itself is the bandwidth bottleneck
+*
+* The LDR is modelled as a behavioural resistor whose value is 10^V(rexp), so
+* sweeping Vrexp from 3 to 7 sweeps R from 1 kOhm to 10 MOhm LOGARITHMICALLY.
+* This is the "sweep it wide" the user asked for.
+*
+* Lux mapping used when interpreting (R10 taken as 23 kOhm = geometric mean of
+* the 16k/33k datasheet limits):
+*   E = 10 * (R/23k)^(-1/0.75) = 10 * (R/23k)^-1.3333
+
+.include ../models/MCP6001.lib
+.options gmin=100f
+.param VDD=3.3
+.param RFIX=100k
+
+Vdd   vdd 0 DC {VDD}
+
+* --- LDR as a log-swept behavioural resistor ---
+Vrexp rexp 0 DC 4.36
+BLDR  vdd vin I = V(vdd,vin) / pow(10, V(rexp))
+
+* --- fixed leg R5 = 100k (CRCW0603100KFKEA, 1%) ---
+R5    vin 0 {RFIX}
+
+* --- U11 unit B: unity-gain follower ---
+XU11B vin vbuf vdd 0 vbuf MCP6001
+
+* The buffer output drives three digipot P0B terminals (U3, U5, U7). Each pot
+* is 10k end-to-end, so the buffer sees ~3.33k to the other pot terminals.
+* Modelled here as a 3.33k load returned to the 1.65 V pseudo-ground, which is
+* the correct average case (the far terminals sit around V_REF).
+Vrefl vrefl 0 DC 1.65
+Rload vbuf vrefl 3.333k
+
+.control
+set wr_singlescale
+
+echo "=============== TB02: LDR divider + buffer ==============="
+echo "  Fixed leg R5 = 100k, LDR on the high side, Vdd = 3.3 V"
+echo ""
+
+dc Vrexp 3 7 0.005
+
+* v(vin) = divider output, v(vbuf) = buffered copy
+let rldr  = 10^v(rexp)
+let lux   = 10 * (rldr/23e3)^(-1.3333)
+
+echo "--- Divider output vs LDR resistance ---"
+meas dc v_1k    find v(vin) at=3.0
+meas dc v_4k3   find v(vin) at=3.6335
+meas dc v_16k   find v(vin) at=4.2041
+meas dc v_23k   find v(vin) at=4.3617
+meas dc v_33k   find v(vin) at=4.5185
+meas dc v_100k  find v(vin) at=5.0
+meas dc v_500k  find v(vin) at=5.6990
+meas dc v_1meg  find v(vin) at=6.0
+echo "  R_LDR = 1   k (approx 900 lux, very bright) -> V_BUF_IN = $&v_1k V"
+echo "  R_LDR = 4.3 k (approx 100 lux, room light)  -> V_BUF_IN = $&v_4k3 V"
+echo "  R_LDR = 16  k (10 lux, datasheet MIN)       -> V_BUF_IN = $&v_16k V"
+echo "  R_LDR = 23  k (10 lux, geometric mean)      -> V_BUF_IN = $&v_23k V"
+echo "  R_LDR = 33  k (10 lux, datasheet MAX)       -> V_BUF_IN = $&v_33k V"
+echo "  R_LDR = 100 k (approx 1.5 lux, dusk)        -> V_BUF_IN = $&v_100k V"
+echo "  R_LDR = 500 k (dark, datasheet min dark R)  -> V_BUF_IN = $&v_500k V"
+echo "  R_LDR = 1   M (fully dark)                  -> V_BUF_IN = $&v_1meg V"
+
+echo ""
+echo "--- Buffer fidelity (does U11 follow the divider?) ---"
+meas dc vb_23k  find v(vbuf) at=4.3617
+meas dc vb_1k   find v(vbuf) at=3.0
+let e23 = (vb_23k - v_23k)*1000
+let e1k = (vb_1k  - v_1k )*1000
+echo "  At R=23k : V_BUF_IN = $&v_23k V , V_BUF_1_OUT = $&vb_23k V , err = $&e23 mV"
+echo "  At R=1k  : V_BUF_IN = $&v_1k  V , V_BUF_1_OUT = $&vb_1k  V , err = $&e1k mV"
+
+echo ""
+echo "--- Divider sensitivity dV/dlog10(R) ---"
+* This is the useful-signal metric: volts of output per decade of light.
+* Theory: maximised when R_LDR == RFIX, where it equals Vdd*ln(10)/4 = 1.90 V/dec
+let sens = -deriv(v(vin))
+meas dc s_4k3  find sens at=3.6335
+meas dc s_23k  find sens at=4.3617
+meas dc s_100k find sens at=5.0
+meas dc s_500k find sens at=5.6990
+echo "  |dV/dlog10(R)| at R=4.3k (100 lux) = $&s_4k3  V/decade"
+echo "  |dV/dlog10(R)| at R=23k  (10 lux)  = $&s_23k  V/decade"
+echo "  |dV/dlog10(R)| at R=100k (1.5 lux) = $&s_100k V/decade  <- peak (R=RFIX)"
+echo "  |dV/dlog10(R)| at R=500k (dark)    = $&s_500k V/decade"
+echo "  [theoretical peak with RFIX=100k: Vdd*ln(10)/4 = 1.899 V/decade]"
+
+echo ""
+echo "--- Source impedance seen by the STM32 ADC (V_BUF_IN is wired to PA0) ---"
+* Thevenin Z = R_LDR || RFIX. STM32F030 needs a low source Z to charge its
+* sampling cap; this node has no series R and no sampling capacitor.
+let zth = (rldr * 100e3) / (rldr + 100e3)
+meas dc z_23k  find zth at=4.3617
+meas dc z_100k find zth at=5.0
+meas dc z_500k find zth at=5.6990
+echo "  Zth at R_LDR=23k  = $&z_23k  Ohm"
+echo "  Zth at R_LDR=100k = $&z_100k Ohm   <- worst case (R_LDR = RFIX)"
+echo "  Zth at R_LDR=500k = $&z_500k Ohm"
+
+wrdata results/tb02_ldr_sweep.txt v(vin) v(vbuf) rldr lux sens zth
+quit
+.endc
+
+.end

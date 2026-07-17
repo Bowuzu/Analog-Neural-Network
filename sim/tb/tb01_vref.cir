@@ -1,0 +1,85 @@
+* TB01 - V_REF pseudo-ground (R7/R8 divider + U11 unit A unity buffer)
+*
+* Schematic: +3.3V -- R7 10k -- N$9390 -- R8 10k -- GND
+*            N$9390 -> U11 pin 3 (VINA+);  VOUTA (pin 1) tied to VINA- (pin 2)
+*            V_REF_BUF fans out to: U1 A/B/C "+" , U2 A/B/C "+" , U10 1/2/3 "-"
+*
+* Intent: 1.650 V pseudo-ground. EVERYTHING on this board is referenced to it,
+* so its absolute accuracy is a systematic error term for all three neurons,
+* and its output impedance sets how well it holds under load.
+*
+* R7,R8 = RC0603FR-0710KL -> 1% tolerance.
+
+.include ../models/MCP6001.lib
+.options gmin=100f
+.param VDD=3.3
+
+Vdd   vdd 0 DC {VDD}
+R7    vdd  n9390 10k
+R8    n9390 0    10k
+XU11A n9390 vref vdd 0 vref MCP6001
+
+* Realistic DC load. The LM339 inputs are PNP: bias current flows OUT of the
+* pin into the reference node. 3 units x 25 nA typ (LM339 datasheet) = 75 nA.
+* The MCP6004 "+" inputs are CMOS (~1 pA each) -> negligible, kept for honesty.
+Ilm339 0 vref DC 75n
+Iopamp 0 vref DC 6p
+
+* AC probe: 1 A into the output node => vm(vref) reads directly as |Zout|.
+* DC value is zero so the operating point above is unaffected.
+Iprobe 0 vref DC 0 AC 1
+
+.control
+set wr_singlescale
+
+echo "=============== TB01: V_REF pseudo-ground ==============="
+op
+let vdiv  = v(n9390)
+let vout  = v(vref)
+let errmv = (v(vref) - 1.65)*1000
+echo "  Divider node (R7/R8)  = $&vdiv V"
+echo "  V_REF_BUF             = $&vout V    [target 1.650 V]"
+echo "  Error vs ideal        = $&errmv mV  [MCP6004 Vos spec +/-4.5 mV max]"
+
+echo ""
+echo "--- Resistor tolerance corners (RC0603FR-0710KL = 1%) ---"
+* NOTE: each "op" starts a fresh plot, so vectors do not survive across runs.
+* Values are stashed in shell variables, which do persist.
+alter R7 = 9900
+alter R8 = 10100
+op
+let t1 = v(vref)
+set vhi = $&t1
+echo "  R7=9.9k  R8=10.1k -> V_REF = $vhi V"
+alter R7 = 10100
+alter R8 = 9900
+op
+let t2 = v(vref)
+set vlo = $&t2
+echo "  R7=10.1k R8=9.9k  -> V_REF = $vlo V"
+let spanmv = ($vhi - $vlo)*1000
+echo "  Worst-case 1% spread  = $&spanmv mV pk-pk  (systematic, all 3 neurons)"
+
+alter R7 = 10k
+alter R8 = 10k
+op
+
+echo ""
+echo "--- |Zout| of V_REF_BUF vs frequency ---"
+ac dec 20 1 10Meg
+meas ac z_10hz  find vm(vref) at=10
+meas ac z_1k    find vm(vref) at=1k
+meas ac z_10k   find vm(vref) at=10k
+meas ac z_100k  find vm(vref) at=100k
+meas ac z_1meg  find vm(vref) at=1Meg
+echo "  |Z| @ 10 Hz   = $&z_10hz  Ohm"
+echo "  |Z| @ 1 kHz   = $&z_1k    Ohm"
+echo "  |Z| @ 10 kHz  = $&z_10k   Ohm"
+echo "  |Z| @ 100 kHz = $&z_100k  Ohm"
+echo "  |Z| @ 1 MHz   = $&z_1meg  Ohm"
+
+wrdata results/tb01_vref_zout.txt vm(vref)
+quit
+.endc
+
+.end

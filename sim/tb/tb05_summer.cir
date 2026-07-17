@@ -1,0 +1,171 @@
+* TB05 - 4-input inverting summer (U2 unit A -> N1_SUM), with REAL weight cells
+*
+* Schematic: N1_W1..N1_W4 -- R15..R18 (100k each) -- N$9415 -- R19 22k -- N1_SUM
+*            N$9415 -> U2 pin 2 (VINA-);  U2 pin 3 (VINA+) -> V_REF_BUF
+*            N1_SUM = U2 pin 1 (VOUTA) -> U10 pin 7 (comparator 1 IN+), TP6
+*
+* Weight sources for neuron 1:
+*   N1_W1 = U3 pot0   A=INV_V_1  B=V_BUF_1_OUT
+*   N1_W2 = U3 pot1   A=INV_V_2  B=V_BUF_2_OUT
+*   N1_W3 = U4 pot0   A=INV_V_3  B=V_BUF_3_OUT
+*   N1_W4 = U4 pot1   BIAS: A=GND, B=+3.3V   -> W_bias = 3.3*(1 - Db/256)
+*
+* Intent: N_SUM = 1.65 - 0.22*SUM(W_i - 1.65),  gain -Rf/Rin = -22k/100k = -0.22
+*
+* Sign chain (this is what makes the neuron correct):
+*   w_i = 1 - 2D_i/256          (weight polarity inverted, see TB04)
+*   N_SUM = 1.65 - 0.22*SUM(v_i*w_i)
+*   comparator: OUT low when N_SUM < V_REF  <=>  SUM(v_i*w_i) > 0
+*   LED lights when OUT low  =>  neuron fires when SUM(w_i*v_i) > 0.  Correct.
+*   The digipot's inverted polarity and the summer's inversion cancel.
+
+.include ../models/MCP6001.lib
+.include ../models/MCP4261.lib
+.options gmin=100f
+
+.param VDD=3.3
+.param VREF=1.65
+.param V1=1.0
+.param V2=1.0
+.param V3=1.0
+
+Vdd   vdd  0 DC {VDD}
+Vref  vref 0 DC {VREF}
+
+* --- the three complementary input pairs (ideal drivers; their own errors are
+* --- characterised in TB02/TB03) ---
+* Vb1 carries AC 1 so it can serve as the drive for the AC and NOISE analyses.
+Vb1 vbuf1 0 DC {VREF+V1} AC 1
+Va1 vinv1 0 DC {VREF-V1}
+Vb2 vbuf2 0 DC {VREF+V2}
+Va2 vinv2 0 DC {VREF-V2}
+Vb3 vbuf3 0 DC {VREF+V3}
+Va3 vinv3 0 DC {VREF-V3}
+
+* --- tap settings (1 V == 1 tap) ---
+Vd1 d1 0 DC 128
+Vd2 d2 0 DC 128
+Vd3 d3 0 DC 128
+Vdb db 0 DC 128
+
+* --- weight pots ---
+XP1  vinv1 nw1 vbuf1 d1 MCP4261_POT_SW
+XP2  vinv2 nw2 vbuf2 d2 MCP4261_POT_SW
+XP3  vinv3 nw3 vbuf3 d3 MCP4261_POT_SW
+* bias pot: A = GND, B = +3.3V
+XPB  0     nw4 vdd   db MCP4261_POT_SW
+
+* --- summing network ---
+R15  nw1 n9415 100k
+R16  nw2 n9415 100k
+R17  nw3 n9415 100k
+R18  nw4 n9415 100k
+R19  n9415 nsum 22k
+XU2A vref n9415 vdd 0 nsum MCP6001
+
+.control
+set wr_singlescale
+
+echo "=============== TB05: 4-input summer (U2A -> N1_SUM) ==============="
+echo "  v1=v2=v3=1.0 V, Rin=100k x4, Rf=22k -> gain -0.22 per input"
+echo ""
+
+echo "--- Per-input gain: sweep D1, hold D2=D3=Db=128 (all contribute 0) ---"
+dc Vd1 0 256 0.5
+meas dc s_d0    find v(nsum) at=0
+meas dc s_d64   find v(nsum) at=64
+meas dc s_d128  find v(nsum) at=128
+meas dc s_d192  find v(nsum) at=192
+meas dc s_d256  find v(nsum) at=256
+echo "  D1=0   (w=+1) -> N1_SUM = $&s_d0   [ideal 1.430 = 1.65-0.22]"
+echo "  D1=64  (w=+.5)-> N1_SUM = $&s_d64  [ideal 1.540]"
+echo "  D1=128 (w= 0) -> N1_SUM = $&s_d128 [ideal 1.650]"
+echo "  D1=192 (w=-.5)-> N1_SUM = $&s_d192 [ideal 1.760]"
+echo "  D1=256 (w=-1) -> N1_SUM = $&s_d256 [ideal 1.870]"
+let g_per_lsb = deriv(v(nsum))
+meas dc gmid find g_per_lsb at=128
+echo "  dN_SUM/dD at D=128 = $&gmid V/tap  [ideal 2*0.22*v/256 = 1.719e-3]"
+
+echo ""
+echo "--- Bias input: sweep Db, others at 128 ---"
+alter Vd1 = 128
+dc Vdb 0 256 0.5
+meas dc b_d0   find v(nsum) at=0
+meas dc b_d128 find v(nsum) at=128
+meas dc b_d256 find v(nsum) at=256
+echo "  Db=0   (W_bias=3.30V) -> N1_SUM = $&b_d0   [ideal 1.650-0.22*1.65=1.287]"
+echo "  Db=128 (W_bias=1.65V) -> N1_SUM = $&b_d128 [ideal 1.650]"
+echo "  Db=256 (W_bias=0.00V) -> N1_SUM = $&b_d256 [ideal 1.650+0.22*1.65=2.013]"
+echo "  NOTE bias polarity is also inverted: code 0 = +3.3V at the wiper."
+
+echo ""
+echo "--- Output saturation: how far can N1_SUM actually swing? ---"
+* Drive all four weights to the same extreme with maximum input signal.
+* v=1.65 is the largest possible (LDR output pinned to a rail).
+alter Vb1 = 3.3
+alter Va1 = 0
+alter Vb2 = 3.3
+alter Va2 = 0
+alter Vb3 = 3.3
+alter Va3 = 0
+alter Vd1 = 0
+alter Vd2 = 0
+alter Vd3 = 0
+alter Vdb = 0
+op
+let smax = v(nsum)
+echo "  All weights +1, v=1.65, bias max -> N1_SUM = $&smax V"
+echo "    [ideal 1.65 - 0.22*(1.65*3 + 1.65) = 0.198 V]"
+alter Vd1 = 256
+alter Vd2 = 256
+alter Vd3 = 256
+alter Vdb = 256
+op
+let smin = v(nsum)
+echo "  All weights -1, v=1.65, bias min -> N1_SUM = $&smin V"
+echo "    [ideal 1.65 + 0.22*(1.65*3 + 1.65) = 3.102 V]"
+echo ""
+echo "  >>> N1_SUM operating range is therefore roughly 0.20 V .. 3.10 V."
+echo "  >>> The LM339 IN+ common-mode limit at Vcc=3.3 is Vcc-1.5 = 1.80 V"
+echo "  >>> (TI's own macromodel enforces Vcc-2.0 = 1.30 V). See TB06."
+
+* restore
+alter Vb1 = 2.65
+alter Va1 = 0.65
+alter Vb2 = 2.65
+alter Va2 = 0.65
+alter Vb3 = 2.65
+alter Va3 = 0.65
+alter Vd1 = 128
+alter Vd2 = 128
+alter Vd3 = 128
+alter Vdb = 128
+op
+
+echo ""
+echo "--- Small-signal: noise gain and bandwidth at the summing node ---"
+* Noise gain = 1 + Rf/(Rin_total_parallel). Rin = 100k + Rth(pot) each.
+* At D=128 Rth=2.575k -> Rin_eff = 102.575k, four in parallel = 25.64k
+* -> noise gain = 1 + 22k/25.64k = 1.858 -> f3dB ~ GBW/1.858 ~ 670 kHz
+* Drive from Vb1 (one pot's B terminal). At D=128 the wiper divides that drive
+* by 2, so the expected low-frequency gain is 0.22/2 = 0.11 => -19.2 dB.
+ac dec 50 1 10Meg
+meas ac ng_10hz find vdb(nsum) at=10
+meas ac f3db    when vdb(nsum)=-22.2 fall=1
+echo "  Gain @ 10 Hz = $&ng_10hz dB   [expect -19.2 dB = 0.22/2]"
+echo "  f_3dB        = $&f3db Hz      [noise gain 1.86 -> expect ~670 kHz]"
+echo "  The LDR rolls off at 10-25 Hz, so this stage is ~4-5 decades faster"
+echo "  than the signal. Bandwidth is not a risk; no peaking observed."
+wrdata results/tb05_summer_ac.txt vdb(nsum)
+
+echo ""
+echo "--- Output noise (thermal noise of the 100k summing network) ---"
+* Matters because it sets the analog noise floor against the weight LSB.
+* 1 LSB at the sum = 0.22 * 2v/256 = 1.72 mV for v=1.0.
+noise v(nsum) Vb1 dec 20 0.1 100k
+print inoise_total onoise_total
+
+quit
+.endc
+
+.end

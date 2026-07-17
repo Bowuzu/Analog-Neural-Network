@@ -1,0 +1,55 @@
+Note: Starting dynamic gmin stepping
+Note: Dynamic gmin stepping completed
+
+Note: Compatibility modes selected: ps
+
+
+Circuit: * tb03 - inverting stage (u1 unit a), gain -1 about the 1.65 v pseudo-ground
+
+=============== TB03: Inverting stage (U1A), target gain -1 ===============
+Reducing trtol to 1 for xspice 'A' devices
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+Using SPARSE 1.3 as Direct Linear Solver
+
+No. of Data Rows : 332
+iv_0v3              =  2.998712e+00
+iv_0v55             =  2.748713e+00
+iv_1v65             =  1.648719e+00
+iv_2v68             =  6.187251e-01
+iv_3v16             =  1.387277e-01
+iv_3v27             =  2.872828e-02
+--- Transfer: INV_V_1 vs V_BUF_1_OUT  [ideal = 3.3 - Vin] ---
+  Vin=0.30 -> INV = 2.99871   [ideal 3.000]
+  Vin=0.55 -> INV = 2.74871  [ideal 2.750]  (LDR dark end)
+  Vin=1.65 -> INV = 1.64872  [ideal 1.650]  (mid / zero signal)
+  Vin=2.68 -> INV = 0.618725  [ideal 0.620]  (LDR at 10 lux)
+  Vin=3.16 -> INV = 0.138728  [ideal 0.140]  (LDR at 100 lux)
+  Vin=3.27 -> INV = 0.0287283  [ideal 0.030]  (LDR very bright)
+
+--- Gain and rail behaviour ---
+gain_mid            =  -9.999946e-01
+gain_hi             =  -9.999946e-01
+gain_lo             =  -9.999946e-01
+  dINV/dVin at Vin=1.65 = -0.999995   [ideal -1.000]
+  dINV/dVin at Vin=3.16 = -0.999995    [ideal -1.000]
+  dINV/dVin at Vin=0.30 = -0.999995    [ideal -1.000]
+iv_min              =  5.841790e-04 at=  3.300000e+00
+iv_max              =  3.273954e+00 at=  3.000000e-02
+  Output range over full input sweep: 0.000584179 V .. 3.27395 V
+  [MCP6004 is rail-to-rail out; datasheet VOL/VOH approx Vss+25mV/Vdd-25mV]
+
+--- Small-signal bandwidth ---
+Reducing trtol to 1 for xspice 'A' devices
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+Using SPARSE 1.3 as Direct Linear Solver
+
+No. of Data Rows : 351
+g_dc                =  -4.725743e-05
+f3db                =  3.920959e+05
+  Gain @ 10 Hz = -4.72574E-05 dB       [ideal 0 dB for gain of -1]
+  f_3dB        = 392096 Hz       [expect ~GBW/2, i.e. ~600 kHz]
+  LDR bandwidth is 10-25 Hz (60 ms rise), so this stage is ~5 decades
+  faster than the signal it carries -- bandwidth is not a design risk.
+ngspice-45.2 done

@@ -1,0 +1,119 @@
+* TB09 - PROPOSED FIXES, verified with the same real TI LM339 macromodel
+*
+* Three defects are addressed together, because they interact:
+*   (1) N1_SUM (0.20..3.10 V) and V_REF (1.65 V) are outside the LM339's
+*       input common-mode range at Vcc=3.3 (datasheet 1.80 V ceiling,
+*       TI macromodel 1.30 V ceiling).
+*   (2) No hysteresis -> 747 transitions per crossing (TB06 C).
+*   (3) No real pull-up: the only path from 1OUT to +3.3V is R30 (1k) in
+*       series with the LED, and an LED at sub-mA current is a very high
+*       dynamic impedance. Hysteresis CANNOT work without a defined logic
+*       high, so a pull-up is a prerequisite for fix (2), not a nicety.
+*
+* FIX AS SIMULATED (keeps the LM339 -- no part change, works on a fabbed board):
+*   - Attenuate BOTH comparator inputs by 3 about ground. Scaling both sides
+*     by the same factor leaves the comparison identical but moves the whole
+*     common-mode operating point into the valid window:
+*       N1_SUM/3 = 0.066 .. 1.03 V     V_REF/3 = 0.55 V     both < 1.30 V
+*     R_A 20k / R_B 10k on N1_SUM ; R_C 20k / R_D 10k on V_REF.
+*     20k/10k (not 200k/100k) keeps the Thevenin impedance at 6.67k so the
+*     hysteresis resistor stays a sane value.
+*   - Add R_PU 10k from 1OUT to +3.3V (defined logic high).
+*   - Add R_H 4.7M from 1OUT back to IN+ for hysteresis:
+*       Vhyst at IN+ = 3.3 * 6.67k/(6.67k + 4.7M) = 4.7 mV
+*                    = 14 mV referred to N1_SUM -> ~7x the 2 mV flicker.
+*
+* NOTE: hysteresis REQUIRES the series resistance. N1_SUM is driven straight
+* from U2's op-amp output (~0 ohm), so feeding current back into that node
+* would simply be absorbed by the op-amp. The 20k/10k divider provides the
+* needed source impedance as a side effect of the attenuation.
+*
+* ALTERNATIVE (cleaner, needs a part change): replace the LM339 with a
+* rail-to-rail-input comparator in the same SOIC-14 quad pinout (e.g. LMV339).
+* Then no attenuator is needed -- only a series R, a pull-up and R_H. Not
+* simulated here: no vendor model was obtainable for that part, so it is
+* recommended on datasheet grounds only and is flagged as such in RESULTS.md.
+
+.include ../models/LM2901.lib
+.options gmin=100f
+.param VDD=3.3
+.model LED_RED D(IS=2e-18 N=2.0 RS=2 CJO=30p)
+
+Vdd  vdd 0 DC {VDD}
+Vref vref 0 DC 1.65
+
+*================ (A) FIXED comparator, DC sweep ========================
+Vsum nsum 0 DC 1.65
+* attenuate N1_SUM by 3
+RA   nsum nsp 20k
+RB   nsp  0   10k
+* attenuate V_REF by 3
+RC   vref nrp 20k
+RD   nrp  0   10k
+XA   nsp nrp vdd 0 outa LM2901
+RPUa vdd outa 10k
+RHa  outa nsp 4.7Meg
+* LED still lights when OUT is LOW
+R30a vdd nleda 1k
+D1a  nleda outa LED_RED
+
+*================ (B) FIXED comparator, chatter rig =====================
+* Same slow ramp + worst-case-phase flicker + broadband noise as TB06 (C),
+* but now at the real N1_SUM level (crossing 1.65 V) and through the fix.
+Vrampb nrampb 0 DC 0 PWL(0 1.64 40m 1.66)
+Vflickb nflickb nrampb SIN(0 2m 100 0 0 180)
+Vnoiseb nnzb nflickb DC 0 trnoise(200u 1u 0 0)
+RAb  nnzb nspb 20k
+RBb  nspb 0    10k
+RCb  vref nrpb 20k
+RDb  nrpb 0    10k
+XB   nspb nrpb vdd 0 outb LM2901
+RPUb vdd outb 10k
+RHb  outb nspb 4.7Meg
+
+.control
+set wr_singlescale
+
+echo "================================================================"
+echo "TB09 (A) FIXED COMPARATOR: DC sweep of N1_SUM over its real range"
+echo "================================================================"
+dc Vsum 0.2 3.1 0.002
+meas dc f_0v2 find v(outa) at=0.2
+meas dc f_1v0 find v(outa) at=1.0
+meas dc f_1v4 find v(outa) at=1.4
+meas dc f_1v6 find v(outa) at=1.6
+meas dc f_1v7 find v(outa) at=1.7
+meas dc f_2v0 find v(outa) at=2.0
+meas dc f_2v5 find v(outa) at=2.5
+meas dc f_3v1 find v(outa) at=3.09
+echo "  N1_SUM=0.20 (below ref -> expect OUT LOW,  LED ON)  -> $&f_0v2 V"
+echo "  N1_SUM=1.00 (below ref -> expect OUT LOW,  LED ON)  -> $&f_1v0 V"
+echo "  N1_SUM=1.40 (below ref -> expect OUT LOW,  LED ON)  -> $&f_1v4 V"
+echo "  N1_SUM=1.60 (below ref -> expect OUT LOW,  LED ON)  -> $&f_1v6 V"
+echo "  N1_SUM=1.70 (above ref -> expect OUT HIGH, LED OFF) -> $&f_1v7 V"
+echo "  N1_SUM=2.00 (above ref -> expect OUT HIGH, LED OFF) -> $&f_2v0 V"
+echo "  N1_SUM=2.50 (above ref -> expect OUT HIGH, LED OFF) -> $&f_2v5 V"
+echo "  N1_SUM=3.09 (above ref -> expect OUT HIGH, LED OFF) -> $&f_3v1 V"
+
+meas dc vtrip when v(outa)=1.65 rise=1
+echo "  Trip point (rising) = $&vtrip V   [target 1.65 V + half hysteresis]"
+
+let ledi = (v(vdd)-v(nleda))/1000
+meas dc li_on  find ledi at=0.2
+meas dc li_off find ledi at=3.09
+echo "  LED current, OUT low  = $&li_on  A"
+echo "  LED current, OUT high = $&li_off A"
+wrdata results/tb09a_fixed_dc.txt v(outa) ledi
+
+echo ""
+echo "================================================================"
+echo "TB09 (B) FIXED COMPARATOR: same noisy crossing that gave 747 edges"
+echo "================================================================"
+tran 2u 40m
+echo "  Transient written; edge count via count_edges.py"
+wrdata results/tb09b_fixed_chatter.txt v(outb) v(nnzb) v(nspb)
+
+quit
+.endc
+
+.end

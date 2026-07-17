@@ -1,0 +1,66 @@
+
+Note: Compatibility modes selected: ps
+
+
+Circuit: * tb04 - digipot weight cell (one mcp4261 pot section, e.g. u3 pot0 -> n1_w1)
+
+=============== TB04: Digipot weight cell ===============
+  v = 1.0 V (input swing about the 1.65 V pseudo-ground)
+  R_AB = 10k, R_W = 75 Ohm, load = R15 100k to virtual ground
+
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+Using SPARSE 1.3 as Direct Linear Solver
+
+No. of Data Rows : 1025
+--- Wiper voltage and delivered weight vs tap D ---
+    (note inverted polarity: D=0 -> w=+1, D=256 -> w=-1)
+w_d0                =  9.992504e-01
+w_d32               =  7.413354e-01
+w_d64               =  4.904363e-01
+w_d128              =  -3.540619e-10
+w_d192              =  -4.904364e-01
+w_d224              =  -7.413354e-01
+w_d256              =  -9.992505e-01
+  D=0   -> w = 0.99925    [ideal +1.000]
+  D=32  -> w = 0.741335   [ideal +0.750]
+  D=64  -> w = 0.490436   [ideal +0.500]
+  D=128 -> w = -3.54062E-10  [ideal  0.000]
+  D=192 -> w = -0.490436  [ideal -0.500]
+  D=224 -> w = -0.741335  [ideal -0.750]
+  D=256 -> w = -0.999251  [ideal -1.000]
+
+--- Loading error (loaded wiper minus ideal divider) ---
+e_d32               =  -8.664576e+00
+e_d64               =  -9.563651e+00
+e_d128              =  -3.540619e-07
+e_d192              =  9.563650e+00
+e_d202              =  9.884305e+00
+e_d224              =  8.664572e+00
+emax                =  9.889608e+00 at=  2.035000e+02
+emin                =  -9.889610e+00 at=  5.250000e+01
+  D=32  : -8.66458  mV
+  D=64  : -9.56365  mV
+  D=128 : -3.54062E-07 mV   (zero weight -- no error by symmetry)
+  D=192 : 9.56365 mV
+  D=202 : 9.8843 mV   (predicted worst case, x=0.79)
+  D=224 : 8.66457 mV
+  Max error over full tap range: -9.88961 mV .. 9.88961 mV
+  [1 LSB of weight at v=1.0 V = 2v/256 = 7.81 mV]
+  [prediction from theory: +/-9.6 mV at x=0.21 / x=0.79]
+
+--- Is the error noise, or a smooth predictable INL? ---
+inl_max             =  1.266275e+00 at=  2.035000e+02
+inl_min             =  -1.266275e+00 at=  5.250000e+01
+  Peak INL = -1.26628 .. 1.26628 LSB
+
+--- Wiper Thevenin impedance vs tap (drives the error above) ---
+z_d64               =  1.950000e+03
+z_d128              =  2.575000e+03
+z_d192              =  1.950000e+03
+z_d256              =  7.500000e+01
+  Rth at D=64  = 1950  Ohm
+  Rth at D=128 = 2575 Ohm   <- peak, R_AB/4 + R_W
+  Rth at D=192 = 1950 Ohm
+  Rth at D=256 = 75 Ohm   (wiper at terminal A, only R_W left)
+ngspice-45.2 done

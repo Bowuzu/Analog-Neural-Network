@@ -1,0 +1,58 @@
+
+Note: Compatibility modes selected: ps
+
+
+Circuit: * tb01 - v_ref pseudo-ground (r7/r8 divider + u11 unit a unity buffer)
+
+=============== TB01: V_REF pseudo-ground ===============
+Reducing trtol to 1 for xspice 'A' devices
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+Using SPARSE 1.3 as Direct Linear Solver
+
+No. of Data Rows : 1
+  Divider node (R7/R8)  = 1.65 V
+  V_REF_BUF             = 1.64936 V    [target 1.650 V]
+  Error vs ideal        = -0.640268 mV  [MCP6004 Vos spec +/-4.5 mV max]
+
+--- Resistor tolerance corners (RC0603FR-0710KL = 1%) ---
+Reducing trtol to 1 for xspice 'A' devices
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+Using SPARSE 1.3 as Direct Linear Solver
+
+No. of Data Rows : 1
+  R7=9.9k  R8=10.1k -> V_REF = 1.66586 V
+Reducing trtol to 1 for xspice 'A' devices
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+Using SPARSE 1.3 as Direct Linear Solver
+
+No. of Data Rows : 1
+  R7=10.1k R8=9.9k  -> V_REF = 1.63286 V
+  Worst-case 1% spread  = 33 mV pk-pk  (systematic, all 3 neurons)
+Reducing trtol to 1 for xspice 'A' devices
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+Using SPARSE 1.3 as Direct Linear Solver
+
+No. of Data Rows : 1
+
+--- |Zout| of V_REF_BUF vs frequency ---
+Reducing trtol to 1 for xspice 'A' devices
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+Using SPARSE 1.3 as Direct Linear Solver
+
+No. of Data Rows : 141
+z_10hz              =  7.466314e-03
+z_1k                =  7.299341e-01
+z_10k               =  7.298649e+00
+z_100k              =  7.232120e+01
+z_1meg              =  4.368428e+02
+  |Z| @ 10 Hz   = 0.00746631  Ohm
+  |Z| @ 1 kHz   = 0.729934    Ohm
+  |Z| @ 10 kHz  = 7.29865   Ohm
+  |Z| @ 100 kHz = 72.3212  Ohm
+  |Z| @ 1 MHz   = 436.843  Ohm
+ngspice-45.2 done

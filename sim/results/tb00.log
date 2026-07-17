@@ -1,0 +1,507 @@
+Note: vinc: dc value used for op instead of transient time=0 value.
+
+Note: Compatibility modes selected: ps
+
+
+Circuit: * tb00 - model validation
+
+=============== A) MCP6001 open-loop gain / GBW ===============
+Reducing trtol to 1 for xspice 'A' devices
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+Using SPARSE 1.3 as Direct Linear Solver
+
+No. of Data Rows : 451
+aol_db              =  1.127382e+02
+Note: vinc: dc value used for op instead of transient time=0 value.
+
+Error: measure  vo_at_3v3  find(AT) : out of interval
+Error: &vo_at_3v3: no such variable.
+Note: vinc: dc value used for op instead of transient time=0 value.
+gbw                 =  1.239630e+06
+gain_1k             =  6.024141e+01
+  Aol(1Hz) = 112.738 dB      [datasheet 112 dB typ]
+  GBW      = 1.23963E+06 Hz         [datasheet 1 MHz typ]
+
+=============== B) MCP6001 buffer: CM range + swing ===============
+Reducing trtol to 1 for xspice 'A' devices
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+Using SPARSE 1.3 as Direct Linear Solver
+
+No. of Data Rows : 331
+vo_at_0v0           =  2.094896e-04
+vo_at_0v1           =  9.948603e-02
+vo_at_1v65          =  1.649359e+00
+vo_at_3v2           =  3.199233e+00
+ meas dc vo_at_3v3 find v(voutb) at=3.3 failed!
+
+  Vin=0.00 -> Vout = 0.00020949   (VOL, datasheet ~Vss+25mV)
+  Vin=0.10 -> Vout = 0.099486
+  Vin=1.65 -> Vout = 1.64936  (midscale, error = Vos)
+  Vin=3.20 -> Vout = 3.19923
+  Vin=3.30 -> Vout =    (VOH, datasheet ~Vdd-25mV)
+
+=============== C) MCP6001 slew rate ===============
+Reducing trtol to 1 for xspice 'A' devices
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+Using SPARSE 1.3 as Direct Linear Solver
+
+Initial Transient Solution
+--------------------------
+
+Node                                   Voltage
+----                                   -------
+vdda                                       3.3
+nipa                                      1.65
+xoa1.10                                    3.8
+xoa1.11                                 3.6275
+xoa1.12                                 3.6275
+xoa1.20                               0.513752
+xoa1.21                              -0.513752
+xoa1.26                              -5.17e-05
+xoa1.27                           -0.000309015
+xoa1.71                                   1.65
+xoa1.14                                1.64936
+xoa1.62                               5.82e-11
+xoa1.15                                1.30433
+nina                                   1.64936
+xoa1.16                                   -0.3
+xoa1.gd16_int1                       -1.95e-14
+xoa1.gd16_int2                           -1.95
+xoa1.13                                    3.6
+xoa1.gd13_int1                    -1.95064e-14
+xoa1.gd13_int2                        -1.95064
+xoa1.30                           -1.95746e-05
+xoa1.31                                102.325
+xoa1.gd31_int1                              -1
+xoa1.gd31_int2                        -102.325
+xoa1.32                                -124.25
+xoa1.gd32_int1                               1
+xoa1.gd32_int2                          124.25
+xoa1.33                            -1.8594e-05
+xoa1.34                            -0.00790246
+xoa1.37                            -0.00790246
+xoa1.38                            -0.00790246
+xoa1.39                            -0.00790246
+xoa1.35                            -0.00790246
+xoa1.g35_int1                           -1e-09
+xoa1.g35_int2                          -3.3079
+xoa1.g36_int1                      1.93857e-11
+xoa1.g36_int2                      -0.00790246
+xoa1.50                           -1.39153e-10
+xoa1.96                                1.64936
+xoa1.57                                1.64936
+vouta                                  1.64936
+xoa1.55                                 3.2993
+xoa1.gd55_int1                     1.64994e-10
+xoa1.gd55_int2                         1.64994
+xoa1.56                                 0.0012
+xoa1.gd56_int1                     1.64816e-10
+xoa1.gd56_int2                         1.64816
+xoa1.51                                      0
+xoa1.52                                      0
+xoa1.99                           -1.39271e-13
+xoa1.98                           -9.31766e-14
+xoa1.g97_int1                     -9.31766e-14
+xoa1.g97_int2                     -9.41178e-15
+xoa1.e97_int1                     -1.39271e-13
+xoa1.61                            0.000107744
+xoa1.g60_int1                      1.07744e-06
+xoa1.g60_int2                              3.3
+xoa1.70                                  1e-06
+vddb                                       3.3
+nipb                                      1.65
+xoa2.10                                    3.8
+xoa2.11                                 3.6275
+xoa2.12                                 3.6275
+xoa2.20                               0.513752
+xoa2.21                              -0.513752
+xoa2.26                              -5.17e-05
+xoa2.27                           -0.000309015
+xoa2.71                                   1.65
+xoa2.14                                1.64936
+xoa2.62                               5.82e-11
+xoa2.15                                1.30433
+voutb                                  1.64936
+xoa2.16                                   -0.3
+xoa2.gd16_int1                       -1.95e-14
+xoa2.gd16_int2                           -1.95
+xoa2.13                                    3.6
+xoa2.gd13_int1                    -1.95064e-14
+xoa2.gd13_int2                        -1.95064
+xoa2.30                            0.000239426
+xoa2.31                                102.325
+xoa2.gd31_int1                              -1
+xoa2.gd31_int2                        -102.325
+xoa2.32                                -124.25
+xoa2.gd32_int1                               1
+xoa2.gd32_int2                          124.25
+xoa2.33                            0.000240324
+xoa2.34                               0.102138
+xoa2.37                               0.102138
+xoa2.38                               0.102138
+xoa2.39                               0.102138
+xoa2.35                               0.102138
+xoa2.g35_int1                           -1e-09
+xoa2.g35_int2                         -3.19786
+xoa2.g36_int1                      1.02138e-10
+xoa2.g36_int2                         0.102138
+xoa2.50                               0.164936
+xoa2.96                                1.64937
+xoa2.57                                1.64945
+xoa2.55                                 3.2927
+xoa2.gd55_int1                     1.64325e-10
+xoa2.gd55_int2                         1.64325
+xoa2.56                             0.00730263
+xoa2.gd56_int1                     1.64215e-10
+xoa2.gd56_int2                         1.64215
+xoa2.51                               0.164936
+xoa2.52                              -0.164936
+xoa2.99                            0.000164936
+xoa2.98                            0.000110347
+xoa2.g97_int1                      0.000110347
+xoa2.g97_int2                      1.11462e-05
+xoa2.e97_int1                      0.000164936
+xoa2.61                            0.000107744
+xoa2.g60_int1                      1.07744e-06
+xoa2.g60_int2                              3.3
+xoa2.70                                  1e-06
+vddc                                       3.3
+nipc                                       0.3
+xoa3.10                                    3.8
+xoa3.11                                 3.6275
+xoa3.12                                 3.6275
+xoa3.20                               0.513752
+xoa3.21                              -0.513752
+xoa3.26                              -5.17e-05
+xoa3.27                           -0.000416201
+xoa3.71                               0.299999
+xoa3.14                               0.299467
+xoa3.62                               5.82e-11
+xoa3.15                             -0.0455645
+voutc                                  0.29947
+xoa3.16                                   -0.3
+xoa3.gd16_int1                          -6e-15
+xoa3.gd16_int2                            -0.6
+xoa3.13                                    3.6
+xoa3.gd13_int1                    -3.30053e-14
+xoa3.gd13_int2                        -3.30053
+xoa3.30                            -0.00279596
+xoa3.31                                102.325
+xoa3.gd31_int1                              -1
+xoa3.gd31_int2                        -102.328
+xoa3.32                                -124.25
+xoa3.gd32_int1                               1
+xoa3.gd32_int2                         124.247
+xoa3.33                            -0.00279488
+xoa3.34                               -1.18783
+xoa3.37                               -1.18783
+xoa3.38                               -1.18783
+xoa3.39                               -1.18783
+xoa3.35                               -1.18783
+xoa3.g35_int1                           -1e-09
+xoa3.g35_int2                         -4.48783
+xoa3.g36_int1                     -7.42391e-11
+xoa3.g36_int2                         -1.18783
+xoa3.50                               0.029947
+xoa3.96                               0.299472
+xoa3.57                               0.299487
+xoa3.55                                 3.2981
+xoa3.gd55_int1                     2.99862e-10
+xoa3.gd55_int2                         2.99862
+xoa3.56                             0.00230804
+xoa3.gd56_int1                     2.97179e-11
+xoa3.gd56_int2                        0.297179
+xoa3.51                               0.029947
+xoa3.52                              -0.029947
+xoa3.99                             2.9947e-05
+xoa3.98                            2.00354e-05
+xoa3.g97_int1                      2.00354e-05
+xoa3.g97_int2                      2.02378e-06
+xoa3.e97_int1                       2.9947e-05
+xoa3.61                            0.000107744
+xoa3.g60_int1                      1.07744e-06
+xoa3.g60_int2                              3.3
+xoa3.70                                  1e-06
+vddd                                       3.3
+ninm                                         1
+ninp                                         0
+xc1.n859943                                3.3
+xc1.x_u5.n774212                           2.3
+xc1.x_u5.n774290                           2.3
+xc1.x_u5.n850209                   0.000327967
+xc1.x_u5.x_u7.vmid                        1.65
+xc1.x_u5.x_u7.evmid_int1                  1.65
+xc1.v+_buffer                              3.3
+xc1.v-_buffer                                0
+xc1.x_u5.mid                              1.65
+xc1.x_u5.x_u7.eout_int1                   1.65
+voutd                                0.0203339
+xc1.x_u5.control_mid                         1
+xc1.x_u5.n778484                     0.0203339
+xc1.x_u5.n789513                             1
+xc1.x_u5.x_u9.e2_int1                        1
+xc1.x_u5.control_hiz                         0
+xc1.x_u5.1v                                  1
+xc1.x_u5.x_u3.3                            2.3
+xc1.x_u5.x_u3.e1_int1                      2.3
+xc1.n860405                                  0
+xc1.x_u5.n778496                      0.020006
+xc1.x_u5.x_u10.4                             1
+xc1.x_u5.x_u10.e1_int1                       1
+xc1.x_u5.x_u8.6                              0
+xc1.x_u5.x_u8.e1_int1                        0
+xc1.n860457                                  0
+xc1.n859997                                  0
+xc1.x_u4.n03175                              0
+xc1.n860391                                  0
+xc1.n860397                                  0
+xc1.x_u2.n20539                          -0.11
+xc1.x_u2.x_u1.out2                           0
+xc1.x_u2.x_u1.eout_int1                      0
+xc1.x_u2.n20155                            1.3
+xc1.in+buff                                  0
+xc1.x_u2.n20826                              0
+xc1.x_u2.x_u21.out2                          0
+xc1.x_u2.x_u21.eout_int1                     0
+xc1.x_u2.n202710                           1.3
+xc1.in-buff                                  1
+xc1.x_u2.n20833                              0
+xc1.x_u2.x_u22.out2                          0
+xc1.x_u2.x_u22.eout_int1                     0
+xc1.x_u2.n20415                          -0.11
+xc1.x_u2.n20840                              0
+xc1.x_u2.x_u23.out2                          0
+xc1.x_u2.x_u23.eout_int1                     0
+xc1.x_u2.n20531                              0
+xc1.x_u2.x_u24.6                             0
+xc1.x_u2.x_u24.e1_int1                       0
+xc1.x_u6.x_u1.evdd_new_int1                3.3
+xc1.x_u6.x_u1.evss_new_int1                  0
+xc1.x_u1.x_u1.evdd_new_int1                  0
+xc1.x_u1.x_u1.evss_new_int1                  1
+xc1.x_u7.n780252                          1.99
+xc1.x_u7.x_u13.out1                        3.3
+xc1.x_u7.x_u13.eout_int1                   3.3
+xc1.x_u7.n780066                           3.3
+xc1.x_u7.x_u16.4                             0
+xc1.x_u7.x_u16.e1_int1                       0
+xc1.x_u7.n780086                             0
+xc1.x_u7.1v                                  1
+xc1.x_u7.n779976                         36.01
+xc1.x_u7.x_u15.out2                          0
+xc1.x_u7.x_u15.eout_int1                     0
+xc1.x_u7.x_u5.out2                           0
+xc1.x_u7.x_u5.eout_int1                      0
+xc1.x_u3.vmid                             1.65
+xc1.x_u3.evmid_int1                       1.65
+xc1.x_u3.vh                                  0
+xc1.x_u3.evh_int1                            0
+xc1.n860477                                  0
+xc1.x_u3.innnew                              1
+xc1.x_u3.einnnew_int1                        1
+xc1.x_u3.out                                 0
+xc1.x_u3.eout_int1                           0
+xc1.n860177                            0.00037
+b.xc1.x_u3.beout#branch                      0
+b.xc1.x_u3.beinnnew#branch                   0
+b.xc1.x_u3.bevh#branch                       0
+b.xc1.x_u3.bevmid#branch                     0
+b.xc1.x_u7.x_u5.beout#branch                 0
+b.xc1.x_u7.x_u15.beout#branch                0
+b.xc1.x_u7.x_u16.be1#branch                  0
+b.xc1.x_u7.x_u13.beout#branch                0
+b.xc1.x_u1.x_u1.bevss_new#branch               0
+b.xc1.x_u1.x_u1.bevdd_new#branch               0
+b.xc1.x_u6.x_u1.bevss_new#branch               0
+b.xc1.x_u6.x_u1.bevdd_new#branch               0
+b.xc1.x_u2.x_u24.be1#branch                  0
+b.xc1.x_u2.x_u23.beout#branch                0
+b.xc1.x_u2.x_u22.beout#branch                0
+b.xc1.x_u2.x_u21.beout#branch                0
+b.xc1.x_u2.x_u1.beout#branch                 0
+b.xc1.x_u5.x_u8.be1#branch                   0
+b.xc1.x_u5.x_u10.be1#branch                  0
+b.xc1.x_u5.x_u3.be1#branch                   0
+b.xc1.x_u5.x_u9.be2#branch                   0
+b.xc1.x_u5.x_u7.beout#branch                 0
+b.xc1.x_u5.x_u7.bevmid#branch                0
+b.xoa3.bg60#branch                           0
+b.xoa3.be97#branch                           0
+b.xoa3.bg97#branch                           0
+b.xoa3.bd52#branch                  2.9947e-05
+b.xoa3.bd51#branch                 -2.9947e-05
+b.xoa3.bgd56#branch                          0
+b.xoa3.bgd55#branch                          0
+b.xoa3.bg36#branch                           0
+b.xoa3.bg35#branch                           0
+b.xoa3.bgd32#branch                          0
+b.xoa3.bgd31#branch                          0
+b.xoa3.bgd13#branch                          0
+b.xoa3.bgd16#branch                          0
+b.xoa2.bg60#branch                           0
+b.xoa2.be97#branch                           0
+b.xoa2.bg97#branch                           0
+b.xoa2.bd52#branch                 0.000164936
+b.xoa2.bd51#branch                -0.000164936
+b.xoa2.bgd56#branch                          0
+b.xoa2.bgd55#branch                          0
+b.xoa2.bg36#branch                           0
+b.xoa2.bg35#branch                           0
+b.xoa2.bgd32#branch                          0
+b.xoa2.bgd31#branch                          0
+b.xoa2.bgd13#branch                          0
+b.xoa2.bgd16#branch                          0
+b.xoa1.bg60#branch                           0
+b.xoa1.be97#branch                           0
+b.xoa1.bg97#branch                           0
+b.xoa1.bd52#branch                           0
+b.xoa1.bd51#branch                           0
+b.xoa1.bgd56#branch                          0
+b.xoa1.bgd55#branch                          0
+b.xoa1.bg36#branch                           0
+b.xoa1.bg35#branch                           0
+b.xoa1.bgd32#branch                          0
+b.xoa1.bgd31#branch                          0
+b.xoa1.bgd13#branch                          0
+b.xoa1.bgd16#branch                          0
+l.xc1.x_u5.l_l1#branch            -0.000327967
+l.xoa3.l38#branch                  -0.00118783
+l.xoa2.l38#branch                  0.000102138
+l1#branch                         -1.39143e-13
+l.xoa1.l38#branch                 -7.90246e-06
+e.xc1.x_u3.eout#branch                       0
+e.xc1.x_u3.einnnew#branch                    0
+e.xc1.x_u3.evh#branch                        0
+e.xc1.x_u3.evmid#branch                      0
+e.xc1.e_e1#branch                            0
+e.xc1.x_u7.x_u5.eout#branch                  0
+e.xc1.x_u7.x_u15.eout#branch                 0
+e.xc1.x_u7.x_u16.e1#branch                   0
+e.xc1.x_u7.x_u13.eout#branch                 0
+e.xc1.x_u1.x_u1.evss_new#branch               0
+e.xc1.x_u1.x_u1.evdd_new#branch               0
+e.xc1.x_u6.x_u1.evss_new#branch               0
+e.xc1.x_u6.x_u1.evdd_new#branch               0
+e.xc1.x_u2.x_u24.e1#branch                   0
+e.xc1.x_u2.x_u23.eout#branch                 0
+e.xc1.x_u2.x_u22.eout#branch                 0
+e.xc1.x_u2.x_u21.eout#branch                 0
+e.xc1.x_u2.x_u1.eout#branch                  0
+e.xc1.x_u5.x_u8.e1#branch                    0
+e.xc1.x_u5.x_u10.e1#branch          -1.001e-09
+e.xc1.x_u5.x_u3.e1#branch         -4.44089e-16
+e.xc1.x_u5.x_u9.e2#branch                    0
+e.xc1.x_u5.x_u7.eout#branch       -1.62967e-12
+e.xc1.x_u5.x_u7.evmid#branch                 0
+e.xoa3.e75#branch                            0
+e.xoa3.e97#branch                            0
+e.xoa3.e38#branch                            0
+e.xoa2.e75#branch                            0
+e.xoa2.e97#branch                            0
+e.xoa2.e38#branch                            0
+e.xoa1.e75#branch                            0
+e.xoa1.e97#branch                            0
+e.xoa1.e38#branch                            0
+v.xc1.v_vhyst#branch                         0
+v.xc1.v_vos#branch                           0
+v.xc1.x_u7.v_vlogic#branch                   0
+v.xc1.x_u7.v_vs_max_set#branch               0
+v.xc1.x_u7.v_vs_min_set#branch               0
+v.xc1.x_u2.v_vcmpp#branch                    0
+v.xc1.x_u2.v_vcmnp#branch                    0
+v.xc1.x_u2.v_vcmpn#branch                    0
+v.xc1.x_u2.v_vcmnn#branch                    0
+v.xc1.x_u5.v_v1#branch              4.1359e-25
+v.xc1.x_u5.v_vlogic#branch                   0
+vinp#branch                            3.5e-09
+vinm#branch                        3.49989e-09
+vddd#branch                       -0.000602966
+v.xoa3.v13#branch                  3.30053e-14
+v.xoa3.v16#branch                        6e-15
+v.xoa3.v10#branch                        5e-05
+vinc#branch                        -5.7879e-13
+vddc#branch                       -0.000138691
+v.xoa2.v13#branch                  1.95064e-14
+v.xoa2.v16#branch                     1.95e-14
+v.xoa2.v10#branch                        5e-05
+vinb#branch                       -6.57829e-13
+vddb#branch                        -0.00027368
+v.xoa1.v13#branch                  1.95064e-14
+v.xoa1.v16#branch                     1.95e-14
+v.xoa1.v10#branch                        5e-05
+vina#branch                       -6.57829e-13
+vdda#branch                       -0.000108744
+a$poly$e.xoa3.e56#branch_1_0       2.97179e-11
+a$poly$e.xoa3.e55#branch_1_0      -2.99862e-10
+a$poly$e.xoa3.e12#branch_1_0                 0
+a$poly$e.xoa2.e56#branch_1_0       1.64215e-10
+a$poly$e.xoa2.e55#branch_1_0      -1.64325e-10
+a$poly$e.xoa2.e12#branch_1_0                 0
+a$poly$e.xoa1.e56#branch_1_0       1.64816e-10
+a$poly$e.xoa1.e55#branch_1_0      -1.64994e-10
+a$poly$e.xoa1.e12#branch_1_0                 0
+a.xoa3.ag60#branch_1_0                       0
+a.xoa3.ag97#branch_1_0                       0
+a.xoa3.agd56#branch_1_0                      0
+a.xoa3.agd55#branch_1_0                      0
+a.xoa3.ag36#branch_1_0                       0
+a.xoa3.ag35#branch_1_0                       0
+a.xoa3.agd32#branch_1_0                      0
+a.xoa3.agd31#branch_1_0                      0
+a.xoa3.agd13#branch_1_0                      0
+a.xoa3.agd16#branch_1_0                      0
+a.xoa2.ag60#branch_1_0                       0
+a.xoa2.ag97#branch_1_0                       0
+a.xoa2.agd56#branch_1_0                      0
+a.xoa2.agd55#branch_1_0                      0
+a.xoa2.ag36#branch_1_0                       0
+a.xoa2.ag35#branch_1_0                       0
+a.xoa2.agd32#branch_1_0                      0
+a.xoa2.agd31#branch_1_0                      0
+a.xoa2.agd13#branch_1_0                      0
+a.xoa2.agd16#branch_1_0                      0
+a.xoa1.ag60#branch_1_0                       0
+a.xoa1.ag97#branch_1_0                       0
+a.xoa1.agd56#branch_1_0                      0
+a.xoa1.agd55#branch_1_0                      0
+a.xoa1.ag36#branch_1_0                       0
+a.xoa1.ag35#branch_1_0                       0
+a.xoa1.agd32#branch_1_0                      0
+a.xoa1.agd31#branch_1_0                      0
+a.xoa1.agd13#branch_1_0                      0
+a.xoa1.agd16#branch_1_0                      0
+
+
+No. of Data Rows : 2071
+t_lo                =  2.218253e-06
+Note: vinc: dc value used for op instead of transient time=0 value.
+t_hi                =  4.936095e-06
+  Slew rate (1.0->2.5V) = 551908 V/s   [datasheet 0.6 V/us = 6e5 V/s]
+
+=============== D) LM339 input common-mode range ===============
+Reducing trtol to 1 for xspice 'A' devices
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+Using SPARSE 1.3 as Direct Linear Solver
+
+No. of Data Rows : 331
+vo_ip_0v5           =  2.033393e-02
+vo_ip_0v9           =  2.033393e-02
+vo_ip_1v1           =  3.300000e+00
+vo_ip_1v25          =  3.300000e+00
+vo_ip_1v40          =  1.650165e+00
+vo_ip_1v65          =  1.650165e+00
+vo_ip_2v50          =  1.650165e+00
+vo_ip_3v00          =  1.650165e+00
+  IN+=0.50 (below IN-, expect LOW)  -> 0.0203339
+  IN+=0.90 (below IN-, expect LOW)  -> 0.0203339
+  IN+=1.10 (above IN-, expect HIGH) -> 3.3
+  IN+=1.25 (above IN-, expect HIGH) -> 3.3
+  IN+=1.40 (model CM limit 1.3 V)   -> 1.65016
+  IN+=1.65 (V_REF_BUF sits here!)   -> 1.65016
+  IN+=2.50 (N_SUM reaches here)     -> 1.65016
+  IN+=3.00 (N_SUM reaches here)     -> 1.65016
+ngspice-45.2 done

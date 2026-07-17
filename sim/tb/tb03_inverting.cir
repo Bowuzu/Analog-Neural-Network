@@ -1,0 +1,94 @@
+* TB03 - Inverting stage (U1 unit A), gain -1 about the 1.65 V pseudo-ground
+*
+* Schematic: V_BUF_1_OUT -- R9 10k -- N$5213 -- R10 10k -- INV_V_1
+*            N$5213 -> U1 pin 2 (VINA-);  U1 pin 3 (VINA+) -> V_REF_BUF
+*            INV_V_1 = U1 pin 1 (VOUTA) -> U3.8, U5.8, U7.8  (three pot A terminals)
+*
+* Intent: produce the complementary partner of each input about V_REF, so that
+*   V_BUF_n_OUT = 1.65 + v   and   INV_V_n = 1.65 - v
+* Those two form the ends of every weight pot, which is what makes signed
+* weights possible on a single supply.
+*
+* Expected: INV_V_1 = 2*1.65 - V_BUF_1_OUT = 3.3 - V_BUF_1_OUT
+* R9,R10 = RC0603FR-0710KL 10k 1%
+
+.include ../models/MCP6001.lib
+.options gmin=100f
+.param VDD=3.3
+
+Vdd   vdd 0 DC {VDD}
+
+* --- pseudo-ground (ideal here; its own error is characterised in TB01) ---
+Vref  vref 0 DC 1.65
+
+* --- driven input, standing in for the buffer output ---
+* AC 1 lets the same source serve the bandwidth measurement at the end.
+Vbuf  vbuf 0 DC 1.65 AC 1
+
+* --- U1 unit A: inverting amp, gain -1 ---
+R9    vbuf  n5213 10k
+R10   n5213 inv   10k
+XU1A  vref n5213 vdd 0 inv MCP6001
+
+* --- real load: INV_V_1 drives three digipot A terminals (U3/U5/U7), each pot
+* --- 10k end-to-end => ~3.33k returned toward V_REF on average.
+Rload inv vref 3.333k
+
+.control
+set wr_singlescale
+
+echo "=============== TB03: Inverting stage (U1A), target gain -1 ==============="
+
+dc Vbuf 0 3.31 0.01
+
+meas dc iv_0v3  find v(inv) at=0.3
+meas dc iv_0v55 find v(inv) at=0.55
+meas dc iv_1v65 find v(inv) at=1.65
+meas dc iv_2v68 find v(inv) at=2.68
+meas dc iv_3v16 find v(inv) at=3.16
+meas dc iv_3v27 find v(inv) at=3.27
+
+echo "--- Transfer: INV_V_1 vs V_BUF_1_OUT  [ideal = 3.3 - Vin] ---"
+echo "  Vin=0.30 -> INV = $&iv_0v3   [ideal 3.000]"
+echo "  Vin=0.55 -> INV = $&iv_0v55  [ideal 2.750]  (LDR dark end)"
+echo "  Vin=1.65 -> INV = $&iv_1v65  [ideal 1.650]  (mid / zero signal)"
+echo "  Vin=2.68 -> INV = $&iv_2v68  [ideal 0.620]  (LDR at 10 lux)"
+echo "  Vin=3.16 -> INV = $&iv_3v16  [ideal 0.140]  (LDR at 100 lux)"
+echo "  Vin=3.27 -> INV = $&iv_3v27  [ideal 0.030]  (LDR very bright)"
+
+echo ""
+echo "--- Gain and rail behaviour ---"
+let g = deriv(v(inv))
+meas dc gain_mid  find g at=1.65
+meas dc gain_hi   find g at=3.16
+meas dc gain_lo   find g at=0.30
+echo "  dINV/dVin at Vin=1.65 = $&gain_mid   [ideal -1.000]"
+echo "  dINV/dVin at Vin=3.16 = $&gain_hi    [ideal -1.000]"
+echo "  dINV/dVin at Vin=0.30 = $&gain_lo    [ideal -1.000]"
+
+* Where does the output actually clip? Sweep to the extremes.
+meas dc iv_min  MIN v(inv)
+meas dc iv_max  MAX v(inv)
+echo "  Output range over full input sweep: $&iv_min V .. $&iv_max V"
+echo "  [MCP6004 is rail-to-rail out; datasheet VOL/VOH approx Vss+25mV/Vdd-25mV]"
+
+echo ""
+echo "--- Small-signal bandwidth ---"
+* Noise gain = 1 + R10/R9 = 2  ->  expect f_3dB ~ GBW/2 ~ 500-620 kHz.
+* The LDR itself has 60 ms rise / 25 ms fall (~10-25 Hz), so this stage is
+* about five decades faster than the signal it carries. Bandwidth is a
+* non-issue here; measured only to confirm nothing is pathological.
+alter Vbuf = 1.65
+ac dec 50 1 10Meg
+meas ac g_dc    find vdb(inv) at=10
+meas ac f3db    when vdb(inv)=-3.01 fall=1
+echo "  Gain @ 10 Hz = $&g_dc dB       [ideal 0 dB for gain of -1]"
+echo "  f_3dB        = $&f3db Hz       [expect ~GBW/2, i.e. ~600 kHz]"
+echo "  LDR bandwidth is 10-25 Hz (60 ms rise), so this stage is ~5 decades"
+echo "  faster than the signal it carries -- bandwidth is not a design risk."
+
+wrdata results/tb03_inverting_ac.txt vdb(inv)
+quit
+.endc
+
+.end

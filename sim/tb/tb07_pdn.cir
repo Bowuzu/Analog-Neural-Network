@@ -1,0 +1,134 @@
+* TB07 - Power distribution network / decoupling
+*
+* Schematic inventory on the +3.3V rail:
+*   C1  100nF  bulk at the J1 power entry
+*   C2  4.7uF  bulk at the J1 power entry (CL10A475KQ8NNNC, X5R 0603)
+*   C5..C14  100nF  one per IC (U11,U1,U2,U3,U4,U5,U6,U7,U8,U10)
+*   C3  10nF  + C4 1uF  on IC1 (STM32)
+*   No on-board regulator: 3.3 V arrives through J1 (a 2-pin connector).
+*
+* Questions:
+*   (1) What does |Z| of the rail look like, and is there a bulk-vs-ceramic
+*       anti-resonance peak?
+*   (2) Is 4.7 uF of bulk enough for 11 ICs with no local regulator?
+*   (3) Does the cable/connector inductance at J1 matter?
+*
+* Parasitics used (typical measured values for these packages, since the
+* schematic carries no ESR/ESL data):
+*   0603 X7R 100nF : ESR 30 mOhm, ESL 0.8 nH  (+0.5 nH mounting)
+*   0603 X5R 4.7uF : ESR 20 mOhm, ESL 0.8 nH  (+0.5 nH mounting)
+*   0603 X7R 10nF  : ESR 50 mOhm, ESL 0.8 nH
+*   J1 feed        : 100 nH (a few cm of wire/cable) + 50 mOhm
+*
+* NOTE ON DERATING: C2 is an X5R 4.7uF/0603. X5R ceramics lose a large
+* fraction of their capacitance under DC bias -- at 3.3 V on an 0603 X5R,
+* effective C is commonly 50-60% of nominal. Both are simulated below.
+
+.options gmin=100f
+
+* --- supply feed through J1: cable inductance + resistance ---
+Vsrc  vsrc 0 DC 3.3 AC 0
+Lfeed vsrc n3v3 100n
+Rfeed n3v3 n3v3f 50m
+
+* --- AC current probe injected at the rail: vm(n3v3f) reads |Z| directly ---
+Iprobe n3v3f 0 DC 0 AC 1
+
+* --- C2 bulk 4.7uF (nominal; derated case run separately) ---
+C2   n3v3f c2a 4.7u
+R2e  c2a   c2b 20m
+L2e  c2b   0   1.3n
+
+* --- C1 bulk 100nF ---
+C1   n3v3f c1a 100n
+R1e  c1a   c1b 30m
+L1e  c1b   0   1.3n
+
+* --- C5..C14: ten 100nF, one per IC. Each sits at the end of a short trace,
+* --- modelled as 2 nH of spreading inductance from the rail node.
+.subckt DECAP a PARAMS: LTRACE=2n
+Ltr  a   x   {LTRACE}
+Cc   x   y   100n
+Re   y   z   30m
+Le   z   0   1.3n
+.ends DECAP
+
+XC5  n3v3f DECAP
+XC6  n3v3f DECAP
+XC7  n3v3f DECAP
+XC8  n3v3f DECAP
+XC9  n3v3f DECAP
+XC10 n3v3f DECAP
+XC11 n3v3f DECAP
+XC12 n3v3f DECAP
+XC13 n3v3f DECAP
+XC14 n3v3f DECAP
+
+* --- STM32 local: C4 1uF + C3 10nF ---
+XC4a n3v3f DECAP
+C3   n3v3f c3a 10n
+R3e  c3a   c3b 50m
+L3e  c3b   0   1.3n
+
+.control
+set wr_singlescale
+
+echo "=============== TB07: +3.3V PDN impedance ==============="
+echo "  C2 4.7uF + C1 100nF bulk, 10x 100nF per-IC, C3/C4 on the STM32."
+echo "  Feed: 100 nH cable + 50 mOhm through J1. No on-board regulator."
+echo ""
+
+ac dec 100 10 1G
+meas ac z_100hz  find vm(n3v3f) at=100
+meas ac z_1k     find vm(n3v3f) at=1k
+meas ac z_10k    find vm(n3v3f) at=10k
+meas ac z_100k   find vm(n3v3f) at=100k
+meas ac z_1meg   find vm(n3v3f) at=1Meg
+meas ac z_10meg  find vm(n3v3f) at=10Meg
+meas ac z_100meg find vm(n3v3f) at=100Meg
+echo "--- |Z| of the +3.3V rail ---"
+echo "  100 Hz  : $&z_100hz Ohm"
+echo "  1 kHz   : $&z_1k    Ohm"
+echo "  10 kHz  : $&z_10k   Ohm"
+echo "  100 kHz : $&z_100k  Ohm"
+echo "  1 MHz   : $&z_1meg  Ohm"
+echo "  10 MHz  : $&z_10meg Ohm"
+echo "  100 MHz : $&z_100meg Ohm"
+
+* Find the worst-case peak and where it sits.
+meas ac zpeak MAX vm(n3v3f) from=1k to=100Meg
+meas ac fpeak MAX_AT vm(n3v3f) from=1k to=100Meg
+echo ""
+echo "--- Anti-resonance ---"
+echo "  Peak |Z| above 1 kHz = $&zpeak Ohm at $&fpeak Hz"
+echo "  (bulk C2 resonating against the ceramic bank / feed inductance)"
+wrdata results/tb07_pdn_nominal.txt vm(n3v3f)
+
+echo ""
+echo "--- Same rail with C2 derated for DC bias (X5R 4.7uF -> ~2.4uF @3.3V) ---"
+alter C2 = 2.4u
+ac dec 100 10 1G
+meas ac d_zpeak MAX vm(n3v3f) from=1k to=100Meg
+meas ac d_fpeak MAX_AT vm(n3v3f) from=1k to=100Meg
+meas ac d_z1k   find vm(n3v3f) at=1k
+echo "  Peak |Z| above 1 kHz = $&d_zpeak Ohm at $&d_fpeak Hz"
+echo "  |Z| @ 1 kHz          = $&d_z1k Ohm"
+wrdata results/tb07_pdn_derated.txt vm(n3v3f)
+
+echo ""
+echo "--- What current step does this board actually make? ---"
+* This is an analog board. The only fast switching is the SPI bus to the
+* digipots, and the STM32 core. There is no DC-DC, no big digital bus, no
+* fast clock into a load. Op-amp supply current is essentially constant
+* (MCP6004 Iq = 100 uA/amp x 12 = 1.2 mA, class AB output stages are lightly
+* loaded here). So the transient demand is small and low frequency.
+echo "  MCP6004 Iq: 100 uA/amplifier x 12 amplifiers = 1.2 mA (near-constant)"
+echo "  LM339 Iq  : ~0.8 mA quiescent + up to 3 x 1.3 mA of LED current"
+echo "  STM32F030 : ~5 mA at 8 MHz"
+echo "  SPI edges are the only fast transient, and they drive 6 CMOS inputs."
+echo "  -> a rail |Z| of a few hundred mOhm is entirely adequate here."
+
+quit
+.endc
+
+.end

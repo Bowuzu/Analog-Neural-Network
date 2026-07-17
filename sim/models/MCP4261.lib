@@ -1,0 +1,48 @@
+* MCP4261 digital potentiometer - single pot section
+* Hand-built from the MCP4261 datasheet (DS22059B). There is no vendor SPICE
+* model for this part; it is a passive resistor string plus a wiper tap, so a
+* behavioural model is exact for our purposes (DC/AC linear network).
+*
+* Part used on this board: MCP4261-103E/SL = dual, 10 kOhm, 8-bit, 257 taps.
+*
+* Datasheet facts encoded here:
+*   R_AB  = 10 kOhm nominal (+/-20% typical process tolerance -- see note)
+*   Taps  = 257 (8-bit, D = 0..256); full-scale D=256 puts wiper at terminal A
+*   R_W   = 75 Ohm typ (wiper resistance), 160 Ohm max @ 3.3V/2.7V
+*
+* Terminal convention (matches the datasheet's resistor-ladder figure):
+*   D = 0    -> wiper at terminal B   (R_WB = R_W,          R_AW = R_AB + R_W)
+*   D = 256  -> wiper at terminal A   (R_WB = R_AB + R_W,   R_AW = R_W)
+*   so  R_WB(D) = R_AB * D/256 + R_W
+*       R_AW(D) = R_AB * (256-D)/256 + R_W
+*
+* NOTE ON WIPER RESISTANCE: R_W appears in series with the wiper TERMINAL, not
+* in each ladder leg. Modelling it as a separate series element (RW below) is
+* the physically correct topology: the two ladder legs meet at an internal node
+* (wi) and R_W connects that node to the external wiper pin.
+*
+* .subckt terminals:  A = terminal A, W = wiper, B = terminal B
+* .param D  = tap setting 0..256
+* .param RAB = end-to-end resistance
+* .param RW  = wiper resistance
+
+.subckt MCP4261_POT A W B PARAMS: D=128 RAB=10k RW=75
+* guard against exactly-zero legs (ngspice dislikes 0-ohm R in some analyses)
+RAW A  wi {MAX(RAB*(256-D)/256, 1m)}
+RWB wi B  {MAX(RAB*(D)/256,     1m)}
+RW  wi W  {RW}
+.ends MCP4261_POT
+
+* -------------------------------------------------------------------------
+* Sweepable variant: the tap setting D is supplied as a VOLTAGE on node DC
+* (1 V == 1 tap), so a .dc sweep of that node sweeps the wiper across all 257
+* taps in one analysis. Electrically identical to MCP4261_POT above.
+*
+* The legs are behavioural resistors: I = V/R with R computed from V(DC).
+* The 1 mOhm floor keeps the leg resistance non-zero at D=0 and D=256.
+* -------------------------------------------------------------------------
+.subckt MCP4261_POT_SW A W B DC PARAMS: RAB=10k RW=75
+BRAW A  wi I = V(A,wi)  / MAX({RAB}*(256-V(DC))/256, 1m)
+BRWB wi B  I = V(wi,B)  / MAX({RAB}*(    V(DC))/256, 1m)
+RW   wi W  {RW}
+.ends MCP4261_POT_SW

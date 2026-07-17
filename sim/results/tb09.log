@@ -1,0 +1,347 @@
+Note: vrampb: dc value used for op instead of transient time=0 value.
+
+Note: Compatibility modes selected: ps
+
+
+Circuit: * tb09 - proposed fixes, verified with the same real ti lm339 macromodel
+
+================================================================
+TB09 (A) FIXED COMPARATOR: DC sweep of N1_SUM over its real range
+================================================================
+Reducing trtol to 1 for xspice 'A' devices
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+Using SPARSE 1.3 as Direct Linear Solver
+
+No. of Data Rows : 1451
+f_0v2               =  1.078511e-01
+f_1v0               =  1.078544e-01
+f_1v4               =  1.078561e-01
+f_1v6               =  1.078569e-01
+f_1v7               =  3.294205e+00
+f_2v0               =  3.294417e+00
+f_2v5               =  3.294770e+00
+f_3v1               =  3.295187e+00
+  N1_SUM=0.20 (below ref -> expect OUT LOW,  LED ON)  -> 0.107851 V
+  N1_SUM=1.00 (below ref -> expect OUT LOW,  LED ON)  -> 0.107854 V
+  N1_SUM=1.40 (below ref -> expect OUT LOW,  LED ON)  -> 0.107856 V
+  N1_SUM=1.60 (below ref -> expect OUT LOW,  LED ON)  -> 0.107857 V
+  N1_SUM=1.70 (above ref -> expect OUT HIGH, LED OFF) -> 3.2942 V
+  N1_SUM=2.00 (above ref -> expect OUT HIGH, LED OFF) -> 3.29442 V
+  N1_SUM=2.50 (above ref -> expect OUT HIGH, LED OFF) -> 3.29477 V
+  N1_SUM=3.09 (above ref -> expect OUT HIGH, LED OFF) -> 3.29519 V
+Note: vrampb: dc value used for op instead of transient time=0 value.
+vtrip               =  1.650968e+00
+  Trip point (rising) = 1.65097 V   [target 1.65 V + half hysteresis]
+li_on               =  1.420328e-03
+li_off              =  5.311307e-16
+  LED current, OUT low  = 0.00142033  A
+  LED current, OUT high = 5.31131E-16 A
+
+================================================================
+TB09 (B) FIXED COMPARATOR: same noisy crossing that gave 747 edges
+================================================================
+Reducing trtol to 1 for xspice 'A' devices
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+Using SPARSE 1.3 as Direct Linear Solver
+
+Initial Transient Solution
+--------------------------
+
+Node                                   Voltage
+----                                   -------
+vdd                                        3.3
+vref                                      1.65
+nsum                                      1.65
+nsp                                    0.55391
+nrp                                   0.550023
+xa.n859943                                 3.3
+xa.x_u5.n774212                            3.3
+xa.x_u5.n774290                            2.3
+xa.x_u5.n850209                        3.29417
+xa.x_u5.x_u7.vmid                         1.65
+xa.x_u5.x_u7.evmid_int1                   1.65
+xa.v+_buffer                               3.3
+xa.v-_buffer                                 0
+xa.x_u5.mid                               1.65
+xa.x_u5.x_u7.eout_int1                    1.65
+outa                                   3.29417
+xa.x_u5.control_mid                          1
+xa.x_u5.n778484                        3.29417
+xa.x_u5.n789513                              1
+xa.x_u5.x_u9.e2_int1                         1
+xa.x_u5.control_hiz                          0
+xa.x_u5.1v                                   1
+xa.x_u5.x_u3.3                             3.3
+xa.x_u5.x_u3.e1_int1                       3.3
+xa.n860405                             3.26733
+xa.x_u5.n778496                        3.29417
+xa.x_u5.x_u10.4                              1
+xa.x_u5.x_u10.e1_int1                        1
+xa.x_u5.x_u8.6                               0
+xa.x_u5.x_u8.e1_int1                         0
+xa.n860457                                   0
+xa.n859997                                   0
+xa.x_u4.n03175                         1.63366
+xa.n860391                             3.26733
+xa.n860397                             1.63366
+xa.x_u2.n20539                           -0.11
+xa.x_u2.x_u1.out2                            0
+xa.x_u2.x_u1.eout_int1                       0
+xa.x_u2.n20155                             1.3
+xa.in+buff                             0.55391
+xa.x_u2.n20826                               0
+xa.x_u2.x_u21.out2                           0
+xa.x_u2.x_u21.eout_int1                      0
+xa.x_u2.n202710                            1.3
+xa.in-buff                            0.550023
+xa.x_u2.n20833                               0
+xa.x_u2.x_u22.out2                           0
+xa.x_u2.x_u22.eout_int1                      0
+xa.x_u2.n20415                           -0.11
+xa.x_u2.n20840                               0
+xa.x_u2.x_u23.out2                           0
+xa.x_u2.x_u23.eout_int1                      0
+xa.x_u2.n20531                               0
+xa.x_u2.x_u24.6                              0
+xa.x_u2.x_u24.e1_int1                        0
+xa.x_u6.x_u1.evdd_new_int1                 3.3
+xa.x_u6.x_u1.evss_new_int1                   0
+xa.x_u1.x_u1.evdd_new_int1             0.55391
+xa.x_u1.x_u1.evss_new_int1            0.550023
+xa.x_u7.n780252                           1.99
+xa.x_u7.x_u13.out1                         3.3
+xa.x_u7.x_u13.eout_int1                    3.3
+xa.x_u7.n780066                            3.3
+xa.x_u7.x_u16.4                              0
+xa.x_u7.x_u16.e1_int1                        0
+xa.x_u7.n780086                              0
+xa.x_u7.1v                                   1
+xa.x_u7.n779976                          36.01
+xa.x_u7.x_u15.out2                           0
+xa.x_u7.x_u15.eout_int1                      0
+xa.x_u7.x_u5.out2                            0
+xa.x_u7.x_u5.eout_int1                       0
+xa.x_u3.vmid                              1.65
+xa.x_u3.evmid_int1                        1.65
+xa.x_u3.vh                                   0
+xa.x_u3.evh_int1                             0
+xa.n860477                                   0
+xa.x_u3.innnew                        0.550023
+xa.x_u3.einnnew_int1                  0.550023
+xa.x_u3.out                                3.3
+xa.x_u3.eout_int1                          3.3
+xa.n860177                             0.55428
+nleda                                      3.3
+nrampb                                    1.64
+nflickb                                   1.64
+nnzb                                      1.64
+nspb                                  0.545944
+nrpb                                  0.550023
+xb.n859943                                 3.3
+xb.x_u5.n774212                            2.3
+xb.x_u5.n774290                            2.3
+xb.x_u5.n850209                    0.000328078
+xb.x_u5.x_u7.vmid                         1.65
+xb.x_u5.x_u7.evmid_int1                   1.65
+xb.v+_buffer                               3.3
+xb.v-_buffer                                 0
+xb.x_u5.mid                               1.65
+xb.x_u5.x_u7.eout_int1                    1.65
+outb                                 0.0203408
+xb.x_u5.control_mid                          1
+xb.x_u5.n778484                      0.0203408
+xb.x_u5.n789513                              1
+xb.x_u5.x_u9.e2_int1                         1
+xb.x_u5.control_hiz                          0
+xb.x_u5.1v                                   1
+xb.x_u5.x_u3.3                             2.3
+xb.x_u5.x_u3.e1_int1                       2.3
+xb.n860405                                   0
+xb.x_u5.n778496                      0.0200127
+xb.x_u5.x_u10.4                              1
+xb.x_u5.x_u10.e1_int1                        1
+xb.x_u5.x_u8.6                               0
+xb.x_u5.x_u8.e1_int1                         0
+xb.n860457                                   0
+xb.n859997                                   0
+xb.x_u4.n03175                               0
+xb.n860391                                   0
+xb.n860397                                   0
+xb.x_u2.n20539                           -0.11
+xb.x_u2.x_u1.out2                            0
+xb.x_u2.x_u1.eout_int1                       0
+xb.x_u2.n20155                             1.3
+xb.in+buff                            0.545944
+xb.x_u2.n20826                               0
+xb.x_u2.x_u21.out2                           0
+xb.x_u2.x_u21.eout_int1                      0
+xb.x_u2.n202710                            1.3
+xb.in-buff                            0.550023
+xb.x_u2.n20833                               0
+xb.x_u2.x_u22.out2                           0
+xb.x_u2.x_u22.eout_int1                      0
+xb.x_u2.n20415                           -0.11
+xb.x_u2.n20840                               0
+xb.x_u2.x_u23.out2                           0
+xb.x_u2.x_u23.eout_int1                      0
+xb.x_u2.n20531                               0
+xb.x_u2.x_u24.6                              0
+xb.x_u2.x_u24.e1_int1                        0
+xb.x_u6.x_u1.evdd_new_int1                 3.3
+xb.x_u6.x_u1.evss_new_int1                   0
+xb.x_u1.x_u1.evdd_new_int1            0.545944
+xb.x_u1.x_u1.evss_new_int1            0.550023
+xb.x_u7.n780252                           1.99
+xb.x_u7.x_u13.out1                         3.3
+xb.x_u7.x_u13.eout_int1                    3.3
+xb.x_u7.n780066                            3.3
+xb.x_u7.x_u16.4                              0
+xb.x_u7.x_u16.e1_int1                        0
+xb.x_u7.n780086                              0
+xb.x_u7.1v                                   1
+xb.x_u7.n779976                          36.01
+xb.x_u7.x_u15.out2                           0
+xb.x_u7.x_u15.eout_int1                      0
+xb.x_u7.x_u5.out2                            0
+xb.x_u7.x_u5.eout_int1                       0
+xb.x_u3.vmid                              1.65
+xb.x_u3.evmid_int1                        1.65
+xb.x_u3.vh                                   0
+xb.x_u3.evh_int1                             0
+xb.n860477                                   0
+xb.x_u3.innnew                        0.550023
+xb.x_u3.einnnew_int1                  0.550023
+xb.x_u3.out                                  0
+xb.x_u3.eout_int1                            0
+xb.n860177                            0.546314
+b.xb.x_u3.beout#branch                       0
+b.xb.x_u3.beinnnew#branch                    0
+b.xb.x_u3.bevh#branch                        0
+b.xb.x_u3.bevmid#branch                      0
+b.xb.x_u7.x_u5.beout#branch                  0
+b.xb.x_u7.x_u15.beout#branch                 0
+b.xb.x_u7.x_u16.be1#branch                   0
+b.xb.x_u7.x_u13.beout#branch                 0
+b.xb.x_u1.x_u1.bevss_new#branch               0
+b.xb.x_u1.x_u1.bevdd_new#branch               0
+b.xb.x_u6.x_u1.bevss_new#branch               0
+b.xb.x_u6.x_u1.bevdd_new#branch               0
+b.xb.x_u2.x_u24.be1#branch                   0
+b.xb.x_u2.x_u23.beout#branch                 0
+b.xb.x_u2.x_u22.beout#branch                 0
+b.xb.x_u2.x_u21.beout#branch                 0
+b.xb.x_u2.x_u1.beout#branch                  0
+b.xb.x_u5.x_u8.be1#branch                    0
+b.xb.x_u5.x_u10.be1#branch                   0
+b.xb.x_u5.x_u3.be1#branch                    0
+b.xb.x_u5.x_u9.be2#branch                    0
+b.xb.x_u5.x_u7.beout#branch                  0
+b.xb.x_u5.x_u7.bevmid#branch                 0
+b.xa.x_u3.beout#branch                       0
+b.xa.x_u3.beinnnew#branch                    0
+b.xa.x_u3.bevh#branch                        0
+b.xa.x_u3.bevmid#branch                      0
+b.xa.x_u7.x_u5.beout#branch                  0
+b.xa.x_u7.x_u15.beout#branch                 0
+b.xa.x_u7.x_u16.be1#branch                   0
+b.xa.x_u7.x_u13.beout#branch                 0
+b.xa.x_u1.x_u1.bevss_new#branch               0
+b.xa.x_u1.x_u1.bevdd_new#branch               0
+b.xa.x_u6.x_u1.bevss_new#branch               0
+b.xa.x_u6.x_u1.bevdd_new#branch               0
+b.xa.x_u2.x_u24.be1#branch                   0
+b.xa.x_u2.x_u23.beout#branch                 0
+b.xa.x_u2.x_u22.beout#branch                 0
+b.xa.x_u2.x_u21.beout#branch                 0
+b.xa.x_u2.x_u1.beout#branch                  0
+b.xa.x_u5.x_u8.be1#branch                    0
+b.xa.x_u5.x_u10.be1#branch                   0
+b.xa.x_u5.x_u3.be1#branch                    0
+b.xa.x_u5.x_u9.be2#branch                    0
+b.xa.x_u5.x_u7.beout#branch                  0
+b.xa.x_u5.x_u7.bevmid#branch                 0
+l.xb.x_u5.l_l1#branch             -0.000328078
+l.xa.x_u5.l_l1#branch             -4.93873e-12
+e.xb.x_u3.eout#branch                        0
+e.xb.x_u3.einnnew#branch                     0
+e.xb.x_u3.evh#branch                         0
+e.xb.x_u3.evmid#branch                       0
+e.xb.e_e1#branch                             0
+e.xb.x_u7.x_u5.eout#branch                   0
+e.xb.x_u7.x_u15.eout#branch                  0
+e.xb.x_u7.x_u16.e1#branch                    0
+e.xb.x_u7.x_u13.eout#branch                  0
+e.xb.x_u1.x_u1.evss_new#branch               0
+e.xb.x_u1.x_u1.evdd_new#branch               0
+e.xb.x_u6.x_u1.evss_new#branch               0
+e.xb.x_u6.x_u1.evdd_new#branch               0
+e.xb.x_u2.x_u24.e1#branch                    0
+e.xb.x_u2.x_u23.eout#branch                  0
+e.xb.x_u2.x_u22.eout#branch                  0
+e.xb.x_u2.x_u21.eout#branch                  0
+e.xb.x_u2.x_u1.eout#branch                   0
+e.xb.x_u5.x_u8.e1#branch                     0
+e.xb.x_u5.x_u10.e1#branch           -1.001e-09
+e.xb.x_u5.x_u3.e1#branch          -4.44089e-16
+e.xb.x_u5.x_u9.e2#branch                     0
+e.xb.x_u5.x_u7.eout#branch        -1.62966e-12
+e.xb.x_u5.x_u7.evmid#branch                  0
+e.xa.x_u3.eout#branch               -0.0326733
+e.xa.x_u3.einnnew#branch                     0
+e.xa.x_u3.evh#branch                         0
+e.xa.x_u3.evmid#branch                       0
+e.xa.e_e1#branch                             0
+e.xa.x_u7.x_u5.eout#branch                   0
+e.xa.x_u7.x_u15.eout#branch                  0
+e.xa.x_u7.x_u16.e1#branch                    0
+e.xa.x_u7.x_u13.eout#branch                  0
+e.xa.x_u1.x_u1.evss_new#branch               0
+e.xa.x_u1.x_u1.evdd_new#branch               0
+e.xa.x_u6.x_u1.evss_new#branch               0
+e.xa.x_u6.x_u1.evdd_new#branch               0
+e.xa.x_u2.x_u24.e1#branch                    0
+e.xa.x_u2.x_u23.eout#branch                  0
+e.xa.x_u2.x_u22.eout#branch                  0
+e.xa.x_u2.x_u21.eout#branch                  0
+e.xa.x_u2.x_u1.eout#branch                   0
+e.xa.x_u5.x_u8.e1#branch                     0
+e.xa.x_u5.x_u10.e1#branch           -1.001e-09
+e.xa.x_u5.x_u3.e1#branch            -1.001e-09
+e.xa.x_u5.x_u9.e2#branch                     0
+e.xa.x_u5.x_u7.eout#branch         1.64417e-12
+e.xa.x_u5.x_u7.evmid#branch                  0
+v.xb.v_vhyst#branch                          0
+v.xb.v_vos#branch                            0
+v.xb.x_u7.v_vlogic#branch                    0
+v.xb.x_u7.v_vs_max_set#branch                0
+v.xb.x_u7.v_vs_min_set#branch                0
+v.xb.x_u2.v_vcmpp#branch                     0
+v.xb.x_u2.v_vcmnp#branch                     0
+v.xb.x_u2.v_vcmpn#branch                     0
+v.xb.x_u2.v_vcmnn#branch                     0
+v.xb.x_u5.v_v1#branch               4.1359e-25
+v.xb.x_u5.v_vlogic#branch                    0
+vnoiseb#branch                    -5.47028e-05
+vflickb#branch                    -5.47028e-05
+vrampb#branch                     -5.47028e-05
+v.xa.v_vhyst#branch                          0
+v.xa.v_vos#branch                            0
+v.xa.x_u7.v_vlogic#branch                    0
+v.xa.x_u7.v_vs_max_set#branch                0
+v.xa.x_u7.v_vs_min_set#branch                0
+v.xa.x_u2.v_vcmpp#branch                     0
+v.xa.x_u2.v_vcmnp#branch                     0
+v.xa.x_u2.v_vcmpn#branch                     0
+v.xa.x_u2.v_vcmnn#branch                     0
+v.xa.x_u5.v_v1#branch               -1.001e-09
+v.xa.x_u5.v_vlogic#branch                    0
+vsum#branch                       -5.48045e-05
+vref#branch                       -0.000109998
+vdd#branch                        -0.000878547
+
+ Reference value :  1.12219e-03 Reference value :  2.64521e-03 Reference value :  4.17100e-03 Reference value :  5.68608e-03 Reference value :  7.20456e-03 Reference value :  8.73430e-03 Reference value :  1.02561e-02 Reference value :  1.17817e-02 Reference value :  1.33097e-02 Reference value :  1.48384e-02 Reference value :  1.63660e-02 Reference value :  1.74262e-02 Reference value :  1.74690e-02 Reference value :  1.89984e-02 Reference value :  2.05311e-02 Reference value :  2.20630e-02 Reference value :  2.35499e-02 Reference value :  2.50270e-02 Reference value :  2.65525e-02 Reference value :  2.80890e-02 Reference value :  2.96252e-02 Reference value :  3.11561e-02 Reference value :  3.26852e-02 Reference value :  3.42182e-02 Reference value :  3.57552e-02 Reference value :  3.72855e-02 Reference value :  3.88105e-02
+No. of Data Rows : 182072
+  Transient written; edge count via count_edges.py
+ngspice-45.2 done

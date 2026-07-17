@@ -1,0 +1,145 @@
+* TB04 - Digipot weight cell (one MCP4261 pot section, e.g. U3 pot0 -> N1_W1)
+*
+* Schematic: U3 pin 10 (P0B) = V_BUF_1_OUT      (= 1.65 + v)
+*            U3 pin  8 (P0A) = INV_V_1          (= 1.65 - v)
+*            U3 pin  9 (P0W) = N1_W1 -> R15 100k -> U2 pin 2 (summing junction)
+*
+* This is POTENTIOMETER (divider) mode, not rheostat. The pot spans the
+* complementary pair, so the wiper interpolates between -v and +v.
+*
+* WEIGHT POLARITY IS INVERTED -- confirmed against the MCP4261 datasheet
+* (DS22059B): Equation 5-1 gives R_WB = R_AB*N/256 + R_W, and the wiper-code
+* table states "Zero Scale (W = B)" at code 000h and "Full Scale (W = A)" at
+* 100h. Terminal B is V_BUF_1_OUT (=1.65+v) and terminal A is INV_V_1
+* (=1.65-v), therefore:
+*
+*   D = 0   -> wiper at B -> W = 1.65 + v -> w = +1
+*   D = 256 -> wiper at A -> W = 1.65 - v -> w = -1
+*
+*   W_ideal = 1.65 + v*(1 - 2D/256)
+*   signed weight w = (W - 1.65)/v = 1 - 2D/256  ->  w in [-1,+1], w=0 at D=128
+*
+* i.e. INCREASING the digipot code makes the weight MORE NEGATIVE. This is a
+* firmware sign convention, not a hardware fault, but it is the opposite of
+* the naive expectation and must be right in the STM32 code.
+*
+* QUESTION UNDER TEST (plan suspect #3): the wiper's own Thevenin impedance
+* peaks at R_AB/4 = 2.5k at mid-scale, in series with the 100k summing
+* resistor. Since the summing junction is a virtual ground at 1.65 V, that
+* divider pulls the wiper toward 1.65 by an amount that DEPENDS ON D --
+* i.e. a weight nonlinearity (INL), not a constant gain error.
+*
+* Predicted: err(x) ~ -v*(2x-1)*(R_AB*x*(1-x) + R_W)/100k , x = D/256
+*            max |err| ~ 0.0096*v  (at x ~ 0.79 and x ~ 0.21)
+* Compare against 1 LSB of weight = 2v/256 = 0.0078*v
+
+.include ../models/MCP4261.lib
+.options gmin=100f
+
+.param V=1.0
+.param VREF=1.65
+
+* --- pseudo-ground / summing junction (a virtual ground held at V_REF) ---
+Vref  vref 0 DC {VREF}
+
+* --- the complementary input pair, driven ideally (their own errors are
+* --- characterised in TB02/TB03; here we isolate the pot) ---
+Vb    vbuf 0 DC {VREF+V}
+Va    vinv 0 DC {VREF-V}
+
+* --- tap setting as a voltage: 1 V == 1 tap ---
+Vd    dctl 0 DC 128
+
+* --- the pot: A = INV_V_1, B = V_BUF_1_OUT, W = N1_W1 ---
+XPOT  vinv nw vbuf dctl MCP4261_POT_SW
+
+* --- R15: wiper -> summing junction (virtual ground at V_REF) ---
+R15   nw vref 100k
+
+* --- Reference: the same pot with NO load, to separate the ideal divider
+* --- action from the loading error.
+XPOTU vinv nwu vbuf dctl MCP4261_POT_SW
+
+.control
+set wr_singlescale
+
+echo "=============== TB04: Digipot weight cell ==============="
+echo "  v = 1.0 V (input swing about the 1.65 V pseudo-ground)"
+echo "  R_AB = 10k, R_W = 75 Ohm, load = R15 100k to virtual ground"
+echo ""
+
+dc Vd 0 256 0.25
+
+* signed weight actually delivered, vs the ideal 2D/256-1
+let x      = v(dctl)/256
+let w_load = (v(nw)  - 1.65)/1.0
+let w_unld = (v(nwu) - 1.65)/1.0
+let w_ideal= 1 - 2*x
+let err_mv = (v(nw) - (1.65 + 1.0*w_ideal))*1000
+
+echo "--- Wiper voltage and delivered weight vs tap D ---"
+echo "    (note inverted polarity: D=0 -> w=+1, D=256 -> w=-1)"
+meas dc w_d0    find w_load at=0
+meas dc w_d32   find w_load at=32
+meas dc w_d64   find w_load at=64
+meas dc w_d128  find w_load at=128
+meas dc w_d192  find w_load at=192
+meas dc w_d224  find w_load at=224
+meas dc w_d256  find w_load at=256
+echo "  D=0   -> w = $&w_d0    [ideal +1.000]"
+echo "  D=32  -> w = $&w_d32   [ideal +0.750]"
+echo "  D=64  -> w = $&w_d64   [ideal +0.500]"
+echo "  D=128 -> w = $&w_d128  [ideal  0.000]"
+echo "  D=192 -> w = $&w_d192  [ideal -0.500]"
+echo "  D=224 -> w = $&w_d224  [ideal -0.750]"
+echo "  D=256 -> w = $&w_d256  [ideal -1.000]"
+
+echo ""
+echo "--- Loading error (loaded wiper minus ideal divider) ---"
+meas dc e_d32   find err_mv at=32
+meas dc e_d64   find err_mv at=64
+meas dc e_d128  find err_mv at=128
+meas dc e_d192  find err_mv at=192
+meas dc e_d202  find err_mv at=202
+meas dc e_d224  find err_mv at=224
+meas dc emax    MAX err_mv
+meas dc emin    MIN err_mv
+echo "  D=32  : $&e_d32  mV"
+echo "  D=64  : $&e_d64  mV"
+echo "  D=128 : $&e_d128 mV   (zero weight -- no error by symmetry)"
+echo "  D=192 : $&e_d192 mV"
+echo "  D=202 : $&e_d202 mV   (predicted worst case, x=0.79)"
+echo "  D=224 : $&e_d224 mV"
+echo "  Max error over full tap range: $&emin mV .. $&emax mV"
+echo "  [1 LSB of weight at v=1.0 V = 2v/256 = 7.81 mV]"
+echo "  [prediction from theory: +/-9.6 mV at x=0.21 / x=0.79]"
+
+echo ""
+echo "--- Is the error noise, or a smooth predictable INL? ---"
+* If it is smooth and monotonic in character it is absorbed by weight
+* calibration/training; if it were erratic it would cost real resolution.
+let inl_lsb = err_mv / 7.81
+meas dc inl_max MAX inl_lsb
+meas dc inl_min MIN inl_lsb
+echo "  Peak INL = $&inl_min .. $&inl_max LSB"
+
+echo ""
+echo "--- Wiper Thevenin impedance vs tap (drives the error above) ---"
+* Rth = (R_AW || R_WB) + R_W ; peaks at R_AB/4 + R_W = 2575 Ohm at D=128
+let raw_r = 10e3*(256-v(dctl))/256
+let rwb_r = 10e3*v(dctl)/256
+let rth   = (raw_r*rwb_r)/(raw_r+rwb_r) + 75
+meas dc z_d64  find rth at=64
+meas dc z_d128 find rth at=128
+meas dc z_d192 find rth at=192
+meas dc z_d256 find rth at=256
+echo "  Rth at D=64  = $&z_d64  Ohm"
+echo "  Rth at D=128 = $&z_d128 Ohm   <- peak, R_AB/4 + R_W"
+echo "  Rth at D=192 = $&z_d192 Ohm"
+echo "  Rth at D=256 = $&z_d256 Ohm   (wiper at terminal A, only R_W left)"
+
+wrdata results/tb04_weight_sweep.txt w_load w_unld w_ideal err_mv rth
+quit
+.endc
+
+.end
